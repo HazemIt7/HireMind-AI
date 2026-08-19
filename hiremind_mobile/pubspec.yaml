@@ -1,0 +1,47 @@
+name: hiremind_mobile
+description: "Application mobile multi-plateforme pour la plateforme SaaS de recrutement HireMind AI."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Navigation
+  go_router: ^17.3.0
+
+  # State Management & DI
+  provider: ^6.1.2
+  get_it: ^9.2.1
+
+  # Network & API
+  dio: ^5.4.1
+  retrofit: ^4.1.0
+
+  # Models & Functional helpers
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.8.1
+
+  # UI & Media
+  cupertino_icons: ^1.0.6
+  google_fonts: ^8.2.0
+  fl_chart: ^1.2.0      # Pour le graphique radar du Skill Passport
+  file_picker: ^8.3.7    # Pour l'upload de CV
+  audioplayers: ^6.0.0   # Pour la lecture audio de l'entretien IA
+  record: ^7.1.1         # Pour la capture de la voix
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.8
+  retrofit_generator: ^10.2.7
+  freezed: ^4.0.0-dev.3
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true

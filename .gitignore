@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js build output
+hiremind_web/.next/
+hiremind_web/out/
+hiremind_web/build/
+
+# NestJS build output
+hiremind_backend/dist/
+
+# Flutter build output & cache
+hiremind_mobile/.dart_tool/
+hiremind_mobile/.flutter-plugins
+hiremind_mobile/.flutter-plugins-dependencies
+hiremind_mobile/.pub-cache/
+hiremind_mobile/.pub/
+hiremind_mobile/build/
+hiremind_mobile/android/.gradle/
+hiremind_mobile/android/local.properties
+hiremind_mobile/android/app/debug/
+hiremind_mobile/android/app/profile/
+hiremind_mobile/android/app/release/
+
+# Logs and environment
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & OS files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+scratch/

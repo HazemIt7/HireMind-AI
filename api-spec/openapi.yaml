@@ -1,0 +1,582 @@
+openapi: 3.0.3
+info:
+  title: HireMind AI API Spec
+  description: Spécification des contrats d'API pour la plateforme SaaS de recrutement HireMind AI. Ce document définit l'interface d'intégration entre le Client Mobile (Flutter), le Portail Web (Next.js 15) et le Core Backend (NestJS).
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Serveur de développement local NestJS
+paths:
+  # --- AUTHENTICATION ---
+  /auth/register:
+    post:
+      summary: Inscription d'un utilisateur
+      description: Permet d'enregistrer un candidat ou un recruteur.
+      tags:
+        - Authentification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - role
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: candidate@hiremind.ai
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+                role:
+                  type: string
+                  enum: [candidate, recruiter, admin]
+                  example: candidate
+      responses:
+        '201':
+          description: Utilisateur créé avec succès.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "usr_98237498"
+                  email:
+                    type: string
+                    example: candidate@hiremind.ai
+                  role:
+                    type: string
+                    example: candidate
+        '400':
+          description: Données invalides ou email déjà utilisé.
+
+  /auth/login:
+    post:
+      summary: Connexion utilisateur
+      description: Authentifie l'utilisateur et retourne un token JWT.
+      tags:
+        - Authentification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: candidate@hiremind.ai
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Authentification réussie.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  expiresIn:
+                    type: integer
+                    example: 3600
+        '401':
+          description: Identifiants invalides.
+
+  /auth/me:
+    get:
+      summary: Obtenir le profil de l'utilisateur connecté
+      description: Retourne les détails du profil de l'utilisateur à partir du token JWT.
+      tags:
+        - Authentification
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil utilisateur retourné.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "usr_98237498"
+                  email:
+                    type: string
+                    example: candidate@hiremind.ai
+                  role:
+                    type: string
+                    example: candidate
+                  profile:
+                    type: object
+                    properties:
+                      firstName:
+                        type: string
+                        example: "Jean"
+                      lastName:
+                        type: string
+                        example: "Dupont"
+        '401':
+          description: Non authentifié.
+
+  # --- CV & PASS SPORT IA ---
+  /cv/upload:
+    post:
+      summary: Déposer un CV pour parsing automatique
+      description: Importe un fichier de CV (PDF, DOCX, TXT), extrait les informations avec un LLM et retourne les données structurées.
+      tags:
+        - CV & Parsing
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Fichier du CV (Max 5MB).
+      responses:
+        '201':
+          description: CV importé et analysé avec succès.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cvUrl:
+                    type: string
+                    format: uri
+                    example: "https://minio.hiremind.internal/cvs/raw_cv_98237498.pdf"
+                  parsedData:
+                    type: object
+                    properties:
+                      identity:
+                        type: object
+                        properties:
+                          fullName:
+                            type: string
+                            example: "Jean Dupont"
+                          email:
+                            type: string
+                            example: "jean.dupont@email.com"
+                          phone:
+                            type: string
+                            example: "+33612345678"
+                      skills:
+                        type: object
+                        properties:
+                          technical:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Flutter", "Dart", "Firebase", "Git"]
+                          methodological:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Agile", "Scrum", "TDD", "Clean Architecture"]
+                          softSkills:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Communication", "Leadership", "Esprit d'équipe"]
+                      experiences:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            company:
+                              type: string
+                              example: "Tech Corp"
+                            role:
+                              type: string
+                              example: "Développeur Mobile"
+                            duration:
+                              type: string
+                              example: "2 ans"
+                            description:
+                              type: string
+                              example: "Développement d'applications Flutter pour le secteur bancaire."
+
+  /candidates/me/passport:
+    get:
+      summary: Obtenir le Passeport de Compétences (Skill Passport IA)
+      description: Récupère les données structurées du passeport de compétences pour l'affichage en graphique radar.
+      tags:
+        - CV & Parsing
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Passeport de compétences récupéré.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidateId:
+                    type: string
+                    example: "usr_98237498"
+                  radarScores:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        axis:
+                          type: string
+                          description: Axe du graphique radar (ex. Technique, Soft Skills, Gestion de projet)
+                          example: "Technique"
+                        score:
+                          type: integer
+                          description: Score sur 100
+                          example: 85
+
+  # --- OFFRES D'EMPLOI & MATCHING ---
+  /jobs:
+    post:
+      summary: Créer une offre d'emploi assistée par IA (Recruteur)
+      description: Le recruteur soumet un prompt rapide et l'IA génère la fiche de poste complète (missions, soft skills, salaire marché).
+      tags:
+        - Offres d'emploi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  example: "Développeur Flutter Senior, 5 ans d'expérience, télétravail partiel, Paris"
+      responses:
+        '201':
+          description: Fiche de poste générée et enregistrée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "job_018273"
+                  title:
+                    type: string
+                    example: "Développeur Mobile Flutter Senior (H/F)"
+                  description:
+                    type: string
+                    example: "Nous recherchons un développeur senior pour piloter notre transition vers Flutter..."
+                  requirements:
+                    type: object
+                    properties:
+                      technical:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Flutter", "Dart", "CI/CD", "Clean Architecture"]
+                      softSkills:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Autonomie", "Mentorat", "Rigueur"]
+                  salaryRange:
+                    type: string
+                    example: "55k€ - 65k€"
+
+    get:
+      summary: Lister les offres d'emploi disponibles
+      tags:
+        - Offres d'emploi
+      responses:
+        '200':
+          description: Liste des offres d'emploi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    description:
+                      type: string
+
+  /jobs/{id}/match:
+    post:
+      summary: Calculer le score de matching sémantique d'un candidat
+      description: Calcule la distance cosinus entre le CV du candidat et l'offre d'emploi à l'aide de Sentence Embeddings et Qdrant.
+      tags:
+        - Offres d'emploi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "job_018273"
+      responses:
+        '200':
+          description: Score de matching calculé avec détails.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matchingScore:
+                    type: number
+                    format: float
+                    description: Pourcentage de matching global.
+                    example: 78.5
+                  matchingBreakdown:
+                    type: object
+                    properties:
+                      technicalMatch:
+                        type: number
+                        example: 90
+                      experienceMatch:
+                        type: number
+                        example: 70
+                      softSkillsMatch:
+                        type: number
+                        example: 75
+                  keywordsMatched:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Flutter", "Clean Architecture", "Dart"]
+
+  # --- IA ADAPTIVE INTERVIEW ---
+  /interviews/start:
+    post:
+      summary: Lancer une session d'entretien IA
+      description: Initialise une session d'entretien adaptatif liée à une offre d'emploi spécifique.
+      tags:
+        - Entretien IA Adaptatif
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - jobId
+              properties:
+                jobId:
+                  type: string
+                  example: "job_018273"
+      responses:
+        '201':
+          description: Session d'entretien démarrée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                    example: "sess_550e8400-e29b-41d4-a716-446655440000"
+                  firstQuestion:
+                    type: string
+                    example: "Bonjour ! Pouvez-vous me présenter vos expériences marquantes en développement d'applications avec Flutter ?"
+
+  /interviews/{sessionId}/message:
+    post:
+      summary: Envoyer une réponse textuelle et obtenir la question suivante
+      description: Soumet la réponse textuelle du candidat à l'arbre décisionnel IA et récupère la question suivante adaptée au niveau.
+      tags:
+        - Entretien IA Adaptatif
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "sess_550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  example: "J'ai développé une application de e-commerce avec Flutter et BLoC en Clean Architecture."
+      responses:
+        '200':
+          description: Réponse traitée et prochaine question renvoyée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nextQuestion:
+                    type: string
+                    example: "Très intéressant. Pourquoi avez-vous privilégié BLoC par rapport à d'autres solutions de gestion d'état comme Riverpod pour ce projet ?"
+                  isFinished:
+                    type: boolean
+                    description: Indique si l'entretien est terminé.
+                    example: false
+
+  /interviews/{sessionId}/audio:
+    post:
+      summary: Envoyer une réponse vocale et obtenir la question suivante
+      description: Upload un chunk audio de la réponse du candidat (Whisper STT sur le Backend) et retourne la transcription et la prochaine question.
+      tags:
+        - Entretien IA Adaptatif
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audioFile
+              properties:
+                audioFile:
+                  type: string
+                  format: binary
+                  description: Fichier audio encodé (ex. m4a, wav).
+      responses:
+        '200':
+          description: Audio transcrit et prochaine question générée.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcription:
+                    type: string
+                    example: "J'utilise principalement GoRouter pour gérer les routes de manière déclarative."
+                  nextQuestion:
+                    type: string
+                    example: "Comment gérez-vous la redirection de routes pour les utilisateurs non authentifiés avec GoRouter ?"
+                  nextQuestionAudioUrl:
+                    type: string
+                    format: uri
+                    description: URL du flux audio de la question généré par ElevenLabs TTS.
+                    example: "https://api.hiremind.ai/v1/assets/audio/q_98273.mp3"
+                  isFinished:
+                    type: boolean
+                    example: false
+
+  # --- SANDBOX EXECUTION (TESTS TECHNIQUES) ---
+  /sandbox/execute:
+    post:
+      summary: Exécuter de manière sécurisée le code d'un test technique
+      description: Compiles et exécutes du code (Node, Python, Go, etc.) dans un conteneur sandbox éphémère. Évalue la qualité et prévient la triche.
+      tags:
+        - Sandbox Tests Techniques
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - language
+                - code
+                - testSuiteId
+              properties:
+                language:
+                  type: string
+                  enum: [javascript, typescript, python, go, java]
+                  example: python
+                code:
+                  type: string
+                  example: |
+                    def solution(arr):
+                        return sorted(list(set(arr)))
+                testSuiteId:
+                  type: string
+                  example: "test_suite_dart_01"
+      responses:
+        '200':
+          description: Code exécuté. Retourne les résultats de tests unitaires et métriques.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [success, failed, compile_error, timeout]
+                    example: success
+                  output:
+                    type: string
+                    example: "Tests passed: 5/5"
+                  metrics:
+                    type: object
+                    properties:
+                      executionTimeMs:
+                        type: integer
+                        example: 42
+                      memoryUsedKb:
+                        type: integer
+                        example: 1240
+                  antiCheat:
+                    type: object
+                    properties:
+                      plagiarismScore:
+                        type: number
+                        format: float
+                        description: Pourcentage de suspicion de plagiat / copié-collé massif.
+                        example: 12.5
+                      warnings:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
