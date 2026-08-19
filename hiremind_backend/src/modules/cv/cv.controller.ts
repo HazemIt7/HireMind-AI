@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from '../auth/user.service';
 import { QdrantService } from '../jobs/qdrant.service';
+import { LocalLlmService } from './local-llm.service';
 const pdf = require('pdf-parse');
 
 @ApiTags('CV & Parsing')
@@ -11,6 +12,7 @@ export class CvController {
   constructor(
     private readonly userService: UserService,
     private readonly qdrantService: QdrantService,
+    private readonly localLlmService: LocalLlmService,
   ) {}
 
   private parsedDataMap = new Map<string, any>();
@@ -95,16 +97,17 @@ export class CvController {
       fullName = lines.length > 0 ? lines[0] : 'Jean Dupont';
     }
 
-    // Scan for technical skills (Expanded to Cybersecurity, Networking, Systems, Automations)
+    // Scan for technical skills (Expanded to SOC, EDR, SIEM, Blue Team, Networking, Cloud)
     const techCatalog = [
       // Software & Web Dev
       'Flutter', 'Dart', 'Firebase', 'Git', 'React', 'Angular', 'Vue', 'Node', 'Express', 'NestJS', 'TypeScript', 'JavaScript', 'Python', 'Django', 'Flask', 'FastAPI', 'Java', 'Spring', 'Go', 'Golang', 'Rust', 'C++', 'C#', 'SQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Android', 'iOS', 'Kotlin', 'Swift',
-      // Cybersecurity
-      'Pentesting', 'Pentest', 'SIEM', 'Wazuh', 'OSSEC', 'IDS/IPS', 'Firewall', 'Nmap', 'Wireshark', 'Metasploit', 'Audit de sécurité', 'Gestion des vulnérabilités', 'Gestion des accès', 'SSI', 'Cryptographie', 'PKI', 'Cloud Security', 'CEH', 'Ethical Hacker', 'Cybersécurité', 'Cybersecurity',
+      // Cybersecurity, SOC & Blue Team Operations
+      'Analyste SOC', 'SOC Analyst', 'SOC', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint',
+      'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'Proxy', 'Syslog', 'Windows Event Logs',
+      'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing',
+      'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Ethical Hacker', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité', 'Gestion des vulnérabilités', 'Cryptographie', 'PKI',
       // Networks & Systems
-      'Réseaux', 'Networks', 'CCNA', 'TCP/IP', 'Cisco', 'LAN/WAN', 'VLAN', 'Linux', 'Kali Linux', 'Ubuntu', 'Windows', 'Virtualization', 'VirtualBox', 'VMware', 'Active Directory', 'DNS', 'DHCP',
-      // Automations & Electrical Engineering
-      'Génie Électrique', 'Automatisme', 'Automate', 'Automations', 'PLC', 'Contrôle Industriel', 'Cyber-physique', 'Programmation Embarquée', 'Embedded systems', 'Arduino', 'Raspberry Pi', 'SCADA'
+      'Réseaux', 'Networks', 'CCNA', 'TCP/IP', 'Cisco', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Linux', 'Kali Linux', 'Ubuntu', 'Debian', 'Windows Server', 'Active Directory', 'VMware', 'VirtualBox', 'Virtualization'
     ];
     const technical = techCatalog.filter(skill => {
       const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -114,11 +117,10 @@ export class CvController {
       return new RegExp(pattern, 'i').test(text);
     });
 
-    // Scan for methodological skills (Expanded to Risk analysis, Routing/Switching, Automations)
+    // Scan for methodological skills
     const methodCatalog = [
-      'Agile', 'Scrum', 'Kanban', 'TDD', 'BDD', 'Clean Architecture', 'DDD', 'Domain-Driven Design', 'CI/CD', 'DevOps', 'Microservices', 'REST', 'GraphQL',
-      'Politique de Sécurité', 'PSSI', 'EBIOS', 'Mehari', 'Routage', 'Commutation', 'Virtualisation', 'Routing', 'Switching', 'Analyse de Risque', 'Threat Modeling',
-      'Logique système'
+      'Agile', 'Scrum', 'Kanban', 'TDD', 'BDD', 'Clean Architecture', 'DDD', 'CI/CD', 'DevOps', 'Microservices', 'REST', 'GraphQL',
+      'Politique de Sécurité', 'PSSI', 'EBIOS', 'Threat Modeling', 'Routage', 'Commutation', 'Virtualisation', 'Analyse de Risque', 'Analyse de Logs', 'Triage d\'Alertes'
     ];
     const methodological = methodCatalog.filter(skill => {
       const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -128,7 +130,7 @@ export class CvController {
       return new RegExp(pattern, 'i').test(text);
     });
 
-    // Scan for soft skills (Expanded to support more values)
+    // Scan for soft skills
     const softCatalog = [
       'Communication', 'Leadership', 'Esprit d\'équipe', 'Teamwork', 'Autonomie', 'Rigueur', 'Adaptabilité', 'Gestion du temps', 'Créativité', 'Résolution de problèmes',
       'Rigueur et Méthode', 'Veille Technologique', 'Curiosité'
@@ -140,11 +142,6 @@ export class CvController {
         : `\\b${escaped}\\b`;
       return new RegExp(pattern, 'i').test(text);
     });
-
-    // Fallbacks to ensure lists aren't empty if the upload is a dummy file
-    if (technical.length === 0) technical.push('Réseaux', 'Linux', 'Python');
-    if (methodological.length === 0) methodological.push('PSSI', 'Routage');
-    if (softSkills.length === 0) softSkills.push('Rigueur et Méthode', 'Veille Technologique');
 
     const parsedData = {
       identity: {
@@ -167,23 +164,42 @@ export class CvController {
       ],
     };
 
-    // Calculate dynamic radar scores based on extracted keywords count
-    const techScore = Math.min(55 + technical.length * 5, 98);
-    const methodScore = Math.min(60 + methodological.length * 8, 98);
-    const softScore = Math.min(65 + softSkills.length * 8, 98);
-    const projScore = methodological.includes('Agile') || methodological.includes('Scrum') || methodological.includes('PSSI') ? 85 : 65;
-    const archScore = methodological.includes('Clean Architecture') || methodological.includes('DDD') || technical.includes('CCNA') ? 90 : 70;
+    // Try parsing with Local Open-Source LLM (Ollama)
+    const llmResult = await this.localLlmService.parseCvWithLocalLlm(text);
 
-    const radarScores = [
-      { axis: 'Technique', score: techScore },
-      { axis: 'Méthodologique', score: methodScore },
-      { axis: 'Soft Skills', score: softScore },
-      { axis: 'Gestion de projet', score: projScore },
-      { axis: 'Architecture', score: archScore },
+    // Categorized Keyword Scopes for Accurate Axis Scoring
+    const devKeywords = ['Node', 'NestJS', 'Express', 'TypeScript', 'JavaScript', 'React', 'Angular', 'Vue', 'Flutter', 'Dart', 'Django', 'FastAPI', 'Spring', 'Go', 'Java', 'C++', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'GraphQL', 'REST', 'Microservices'];
+    const cyberKeywords = ['SOC', 'Analyste SOC', 'SOC Analyst', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint', 'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing', 'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité'];
+    const networkKeywords = ['CCNA', 'Cisco', 'Cisco CyberOps', 'TCP/IP', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Wireshark', 'Zeek', 'tcpdump', 'Réseaux', 'Networks'];
+    const systemKeywords = ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Linux', 'Ubuntu', 'Debian', 'Windows Server', 'Active Directory', 'VMware', 'VirtualBox', 'Terraform', 'CI/CD', 'DevOps'];
+
+    const devCount = technical.filter(k => devKeywords.includes(k)).length + methodological.filter(k => devKeywords.includes(k)).length;
+    const cyberCount = technical.filter(k => cyberKeywords.includes(k)).length + methodological.filter(k => cyberKeywords.includes(k)).length;
+    const networkCount = technical.filter(k => networkKeywords.includes(k)).length + methodological.filter(k => networkKeywords.includes(k)).length;
+    const systemCount = technical.filter(k => systemKeywords.includes(k)).length + methodological.filter(k => systemKeywords.includes(k)).length;
+
+    // Profile domain detection: combine LLM semantic classification with keyword counts
+    const isCyberProfile = llmResult?.primaryDomain === 'Cybersecurity' || cyberCount > devCount;
+    const isDevProfile = llmResult?.primaryDomain === 'SoftwareDev' || (!isCyberProfile && devCount >= cyberCount);
+
+    const devScore = isDevProfile ? Math.min(80 + devCount * 3, 98) : Math.min(20 + devCount * 3, 40);
+    const cyberScore = isCyberProfile ? Math.min(80 + cyberCount * 3, 98) : Math.min(15 + cyberCount * 3, 35);
+    const networkScore = isCyberProfile ? Math.min(65 + networkCount * 5, 90) : Math.min(30 + networkCount * 5, 60);
+    const systemScore = Math.min(45 + systemCount * 5, 92);
+    const softScore = Math.min(65 + softSkills.length * 7, 95);
+
+    let radarScores = [
+      { axis: 'Software Dev', score: devScore, label: 'Software Dev' },
+      { axis: 'Cybersecurity', score: cyberScore, label: 'Cybersécurité' },
+      { axis: 'Networks', score: networkScore, label: 'Réseaux' },
+      { axis: 'Systems', score: systemScore, label: 'Systèmes & DevOps' },
+      { axis: 'Soft Skills', score: softScore, label: 'Soft Skills' },
     ];
 
+    const textSummary = llmResult?.summary || `Profil extrait automatiquement depuis le fichier téléversé. Compétences clés: ${technical.slice(0, 5).join(', ')}.`;
+
     // Store in-memory maps per user
-    this.parsedDataMap.set(userId, parsedData);
+    this.parsedDataMap.set(userId, { ...parsedData, textSummary, radarScores });
     this.radarScoresMap.set(userId, radarScores);
 
     // 3. Generate 16-D Vector Embedding & Index into Qdrant Vector DB
@@ -214,6 +230,7 @@ export class CvController {
     return {
       cvUrl: 'https://minio.hiremind.internal/cvs/raw_cv_' + userId + '.pdf',
       parsedData,
+      radarScores,
     };
   }
 

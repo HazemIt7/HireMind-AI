@@ -1,28 +1,33 @@
 # 🧠 HireMind AI — Next-Generation SaaS Recruitment Platform
 
-> **HireMind AI** is an end-to-end, AI-powered recruitment platform combining a **Mobile App for Candidates (Flutter)**, a **Recruiter Web Portal (Next.js 16)**, and an **AI Core Backend (NestJS)** equipped with **Qdrant Vector DB**, **Adaptive Interview Engine**, and a **Safe Code Sandbox**.
+> **HireMind AI** is a comprehensive, end-to-end AI-powered recruitment platform combining a **Mobile App for Candidates (Flutter)**, a **Multi-Role Web Portal (Next.js 16)** for Candidates, Recruiters, and Super Admins, and an **AI Core Backend (NestJS)** powered by an **Open-Source Local LLM (Ollama)**, **Qdrant Vector DB**, **Adaptive AI Interview Engine**, and a **Safe Code Sandbox**.
 
 ---
 
 ## 🌟 Key Features
 
-### 💻 1. Recruiter Web Studio (`hiremind_web`)
-* **ATS Kanban Pipeline**: Interactive drag-and-drop candidate management across 6 customizable status columns.
-* **Skill Passport Radar**: Dynamic 5-axis visualization (*Software Dev, Cybersecurity, Networks, Systems, Soft Skills*).
-* **AI Job Generator**: Generate complete, structured job postings with market salary recommendations from quick natural language prompts.
-* **IA Copilot RH**: Interactive AI assistant side-drawer capable of comparing candidates, summarizing pipeline metrics, and recommending top profiles.
-* **State Persistence**: Browser `localStorage` persistence ensuring ATS pipeline movements survive reloads.
+### 👤 1. Dedicated Candidate Portals (Web & Mobile)
+* **Web Espace Candidat (`hiremind_web`)**:
+  * **Interactive PDF CV Uploader**: Instant drag-and-drop CV upload connected to open-source LLM parsing.
+  * **Skill Passport IA (Radar)**: Dynamic 5-axis visual graphic (*Software Dev, Cybersecurity, Networks, Systems, Soft Skills*).
+  * **Live AI Adaptive Interview Modal**: Interactive step-by-step AI interview engine with real-time question generation. Upon completion, candidate matching scores and interview summaries are automatically routed to the recruiter's ATS Kanban pipeline.
+* **Mobile Candidate App (`hiremind_mobile`)**:
+  * Cross-platform Flutter application with native Dio HTTP client optimized with 60-second timeouts for local LLM parsing on CPU.
+  * Instant sync of Skill Passport and candidate data between Web and Mobile spaces.
 
-### 📱 2. Mobile Candidate App (`hiremind_mobile`)
-* **CV Upload & Parsing**: Instant PDF upload connected to NestJS parsing microservices.
-* **Interactive Skill Passport**: Visual radar chart generated from AI-extracted technical and methodological skills.
-* **Adaptive AI Interviews**: Dynamic question tree adapting to candidate performance in real time.
+### 👔 2. Recruiter Studio & Admin Platform (`hiremind_web`)
+* **Multi-Role Authentication**: Secure login/logout and session management supporting **Candidates**, **Recruiters**, and a **Super Admin** with complete platform control.
+* **ATS Kanban Pipeline**: Drag-and-drop candidate management across 6 customizable hiring stages with persistent state across reloads (`localStorage`).
+* **AI Recruiter Recommendation Engine**: Deep per-job AI analysis answering *"Who is the best candidate for this specific job offer and why?"* with comparative breakdown cards.
+* **AI Job Generator**: Natural language prompt-to-job listing generator with market salary recommendations.
+* **IA Copilot RH**: Interactive side-drawer assistant capable of comparing candidates, summarizing pipeline metrics, and querying Qdrant Vector DB embeddings.
 
-### ⚙️ 3. Core Backend & AI Services (`hiremind_backend`)
-* **Qdrant Vector DB Integration**: 16-dimensional Cosine Similarity embeddings for semantic candidate-to-job matching.
-* **CV Parsing Engine**: Dynamic extraction of identity, contact info, and 50+ technical/methodological skill keywords.
-* **Technical Code Sandbox**: Multi-language isolated runner (Python, JavaScript/Node) with execution metrics and anti-cheat/plagiarism inspection.
-* **Multi-Database Architecture**: PostgreSQL (Auth & Billing via TypeORM), MongoDB (Domain models via Mongoose), Redis (Caching/Queues).
+### ⚙️ 3. Core Backend & Local Open-Source LLM (`hiremind_backend`)
+* **Open-Source Local LLM (Ollama + `qwen2.5:1.5b`)**: 0-API-cost CV parsing, semantic domain classification (`SoftwareDev`, `Cybersecurity`, `DevOps`, `Networks`), and role analysis.
+* **Domain-Scoped Keyword Scoping Engine**: Precise keyword taxonomy recognizing 50+ SOC, EDR, SIEM, Blue Team (*Splunk, Sentinel, Wazuh, CrowdStrike, MITRE ATT&CK, Security+*), DevOps, and Software Development skills.
+* **Qdrant Vector DB Integration**: 16-dimensional Cosine Similarity embeddings for instant semantic candidate-to-job vector matching.
+* **Technical Code Sandbox**: Isolated multi-language runner (Python, JavaScript/Node) with execution metrics and anti-cheat code analysis.
+* **Multi-Database Architecture**: PostgreSQL (TypeORM for Auth & Relational entities) + MongoDB (Mongoose for document storage) + Redis (In-memory caching).
 
 ---
 
@@ -30,13 +35,26 @@
 
 | Layer | Technology | Description |
 | :--- | :--- | :--- |
-| **Mobile App** | **Flutter / Dart** | Cross-platform candidate app with native UI & Audio |
+| **Mobile App** | **Flutter / Dart** | Cross-platform candidate app with Dio HTTP client & Custom Canvas Radar |
 | **Web Portal** | **Next.js 16 / React 19** | TailwindCSS v4, Framer Motion, Lucide Icons, Glassmorphism UI |
 | **Core Backend** | **NestJS 11 / TypeScript** | REST API, Swagger OpenAPI, Clean Architecture & DDD |
-| **Vector DB** | **Qdrant Vector DB** | 16-D Cosine distance vector embeddings |
-| **Databases** | **PostgreSQL & MongoDB** | TypeORM (Relational) + Mongoose (Document) |
+| **Local LLM** | **Ollama (`qwen2.5:1.5b`)** | 0-cost local LLM for CV parsing & AI Recruiter Recommendations |
+| **Vector DB** | **Qdrant Vector DB** | 16-D Cosine distance candidate-job embedding matching |
+| **Databases** | **PostgreSQL & MongoDB** | TypeORM (Relational) + Mongoose (Document Storage) |
 | **Storage & Cache** | **MinIO & Redis** | S3-compatible file storage & In-memory cache |
 | **Infrastructure** | **Docker & Docker Compose** | Multi-container orchestration |
+
+---
+
+## 📊 Skill Radar Benchmark Results
+
+| Skill Radar Axis | 👨‍💻 Backend Developer Profile | 🛡️ SOC Analyst Profile |
+| :--- | :---: | :---: |
+| **Software Dev** | **98%** | **20%** |
+| **Cybersécurité** | **15%** | **98%** |
+| **Réseaux** | **30%** | **90%** |
+| **Systèmes & DevOps** | **70%** | **75%** |
+| **Soft Skills** | **65%** | **86%** |
 
 ---
 
@@ -45,6 +63,7 @@
 ### Prerequisites
 - [Node.js](https://nodejs.org/) v18+
 - [Docker](https://www.docker.com/) & Docker Compose
+- [Ollama](https://ollama.com/) (with model `qwen2.5:1.5b` installed: `ollama pull qwen2.5:1.5b`)
 - [Flutter SDK](https://flutter.dev/) (for mobile app)
 
 ### 1. Launch Docker Infrastructure
@@ -67,7 +86,7 @@ npm run start:dev
 - API Base URL: `http://localhost:3000/api/v1`
 - Swagger Documentation: `http://localhost:3000/api-docs`
 
-### 3. Start Recruiter Web Studio (Next.js)
+### 3. Start Multi-Role Web Studio (Next.js)
 ```bash
 cd hiremind_web
 npm install
@@ -89,8 +108,8 @@ flutter run
 ```
 stage/
 ├── docker-compose.yml           # Infrastructure services (PostgreSQL, Mongo, Redis, Qdrant, MinIO)
-├── hiremind_backend/            # NestJS Core API & AI Engines
-├── hiremind_web/                # Next.js Recruiter Studio & ATS Kanban
+├── hiremind_backend/            # NestJS Core API, Local Ollama LLM Service & AI Engines
+├── hiremind_web/                # Next.js Multi-Role Studio (Candidate, Recruiter, Super Admin)
 ├── hiremind_mobile/             # Flutter Candidate Mobile Application
 ├── api-spec/                    # OpenAPI / Swagger contracts
 └── Cahier des Charges...pdf     # Project Specifications Document

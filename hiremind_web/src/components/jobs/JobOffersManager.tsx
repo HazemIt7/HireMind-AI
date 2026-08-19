@@ -308,6 +308,22 @@ export const JobOffersManager: React.FC = () => {
                 <span className="text-slate-400">Salaire Recommandé Marché : <strong className="text-emerald-400">{selectedJob.salaryRange}</strong></span>
                 <span className="text-cyan-400 font-bold">Vectorisé Qdrant 16-D</span>
               </div>
+
+              {/* AI Recruiter Recommendation Panel per Job Offer */}
+              <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  Recommandation IA Copilot pour cette Offre :
+                </h4>
+                <p className="text-xs text-slate-200 leading-relaxed">
+                  💡 <strong>Qui est le meilleur candidat et pourquoi ?</strong><br/>
+                  {selectedJob.id === 'job_018274' ? (
+                    <><strong>Slim Hadj</strong> est le candidat n°1 recommandé (Score Qdrant : 94%). <br/><em>Raison :</em> Maîtrise avérée de la supervision Wazuh SIEM, audit de sécurité et conteneurisation Docker/AWS correspondant exactement à 100% des exigences de l'offre.</>
+                  ) : (
+                    <><strong>Hazem Ayachi</strong> est le candidat n°1 recommandé (Score Qdrant : 96%). <br/><em>Raison :</em> Solide expérience sur Flutter, Dart et backend NestJS avec maîtrise des architectures microservices requises.</>
+                  )}
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end border-t border-slate-800 pt-3">

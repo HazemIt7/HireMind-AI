@@ -1,14 +1,38 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 
 @Injectable()
-export class UserService {
+export class UserService implements OnModuleInit {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
+
+  async onModuleInit() {
+    await this.seedDefaultUsers();
+  }
+
+  async seedDefaultUsers() {
+    const defaultUsers = [
+      { email: 'admin@hiremind.ai', password: 'admin123', role: 'admin', firstName: 'Super', lastName: 'Admin' },
+      { email: 'recruiter@hiremind.ai', password: 'recruiter123', role: 'recruiter', firstName: 'Hazem', lastName: 'Ayachi' },
+      { email: 'slim.hadj@hiremind.ai', password: 'candidate123', role: 'candidate', firstName: 'Slim', lastName: 'Hadj' },
+      { email: 'candidate@hiremind.ai', password: 'candidate123', role: 'candidate', firstName: 'Hazem', lastName: 'Ayachi' },
+    ];
+
+    for (const u of defaultUsers) {
+      const existing = await this.findOneByEmail(u.email);
+      if (!existing) {
+        const created = this.userRepository.create(u);
+        await this.userRepository.save(created);
+        this.logger.log(`Seeded user account: ${u.email} (${u.role})`);
+      }
+    }
+  }
 
   async findOneByEmail(email: string): Promise<User | null> {
     return await this.userRepository.findOne({ where: { email } });

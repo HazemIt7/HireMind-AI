@@ -1,13 +1,22 @@
-'use client';
-
 import React from 'react';
-import { Search, Bell, Sparkles, User, Terminal } from 'lucide-react';
+import { UserSession } from '../auth/AuthModal';
+import { Search, Bell, Sparkles, User, LogIn } from 'lucide-react';
 
 interface HeaderProps {
   onToggleCopilot?: () => void;
+  userSession?: UserSession | null;
+  onOpenAuthModal?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleCopilot }) => {
+export const Header: React.FC<HeaderProps> = ({ onToggleCopilot, userSession, onOpenAuthModal }) => {
+  const getRoleBadge = (r?: string) => {
+    if (r === 'admin') return { label: '🔴 SUPER ADMIN (Accès Total)', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
+    if (r === 'candidate') return { label: '📱 CANDIDAT', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' };
+    return { label: '💼 RECRUTEUR', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
+  };
+
+  const badge = getRoleBadge(userSession?.role);
+
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between px-6">
       {/* Left Search Bar */}
@@ -46,16 +55,27 @@ export const Header: React.FC<HeaderProps> = ({ onToggleCopilot }) => {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400" />
         </button>
 
-        {/* User Profile */}
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-md">
+        {/* User Profile & Account Switch */}
+        <div
+          onClick={onOpenAuthModal}
+          className="flex items-center gap-3 pl-3 border-l border-slate-800 cursor-pointer group"
+          title="Cliquer pour changer de compte ou vous connecter"
+        >
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-md group-hover:glow-cyan transition-all">
             <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
               <User className="w-4 h-4 text-cyan-400" />
             </div>
           </div>
           <div className="hidden md:block text-left">
-            <p className="text-xs font-bold text-slate-200">Hazem (Recruiter Lead)</p>
-            <p className="text-[10px] text-slate-400">TechRecruit Studio</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-bold text-slate-200 group-hover:text-cyan-300 transition-colors">
+                {userSession ? `${userSession.firstName} ${userSession.lastName}` : 'Se Connecter'}
+              </p>
+              <LogIn className="w-3 h-3 text-slate-400 group-hover:text-cyan-400" />
+            </div>
+            <span className={`inline-block text-[9px] font-bold font-mono px-1.5 py-0.5 rounded border mt-0.5 ${badge.color}`}>
+              {badge.label}
+            </span>
           </div>
         </div>
       </div>

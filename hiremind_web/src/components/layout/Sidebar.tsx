@@ -12,21 +12,42 @@ import {
   ChevronDown
 } from 'lucide-react';
 
+import { UserSession } from '../auth/AuthModal';
+
 interface SidebarProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
   onToggleCopilot?: () => void;
+  userSession?: UserSession | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onToggleCopilot }) => {
-  const menuItems = [
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onToggleCopilot, userSession }) => {
+  const role = userSession?.role || 'admin';
+
+  const candidateItems = [
+    { id: 'candidate_space', label: 'Mon Espace Candidat', icon: Users, badge: 'IA' },
+    { id: 'jobs', label: 'Offres & Entretiens IA', icon: Briefcase }
+  ];
+
+  const recruiterItems = [
+    { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
+    { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
+    { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: '2' },
+    { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
+    { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal }
+  ];
+
+  const adminItems = [
+    { id: 'candidate_space', label: 'Espace Candidat (Démo)', icon: Users },
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
     { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: '2' },
     { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
     { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal },
-    { id: 'settings', label: 'Paramètres Studio', icon: Settings }
+    { id: 'settings', label: 'Panneau Super Admin', icon: Settings }
   ];
+
+  const menuItems = role === 'candidate' ? candidateItems : role === 'recruiter' ? recruiterItems : adminItems;
 
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between h-screen sticky top-0 shrink-0">

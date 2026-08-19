@@ -8,6 +8,8 @@ import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { CandidateModal } from '@/components/candidate/CandidateModal';
 import { JobOffersManager } from '@/components/jobs/JobOffersManager';
 import { CopilotRHDrawer } from '@/components/copilot/CopilotRHDrawer';
+import { AuthModal, UserSession } from '@/components/auth/AuthModal';
+import { CandidateDashboard } from '@/components/candidate/CandidateDashboard';
 import { INITIAL_CANDIDATES } from '@/data/mockCandidates';
 import { Candidate, CandidateStatus, RecruiterKPIs } from '@/types/recruiter';
 import {
@@ -32,6 +34,45 @@ export default function RecruiterDashboardPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // User Auth Session State (Defaults to Admin for total access)
+  const [userSession, setUserSession] = useState<UserSession>({
+    id: 'admin-1',
+    email: 'admin@hiremind.ai',
+    role: 'admin',
+    firstName: 'Super',
+    lastName: 'Admin'
+  });
+
+  // Restore saved session & current tab from localStorage on mount (F5 reload)
+  React.useEffect(() => {
+    try {
+      const savedSessStr = localStorage.getItem('hiremind_session');
+      if (savedSessStr) {
+        const sess: UserSession = JSON.parse(savedSessStr);
+        setUserSession(sess);
+
+        const savedTab = localStorage.getItem('hiremind_tab');
+        if (savedTab) {
+          setCurrentTab(savedTab);
+        } else if (sess.role === 'candidate') {
+          setCurrentTab('candidate_space');
+        } else {
+          setCurrentTab('kanban');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleTabChange = (tab: string) => {
+    setCurrentTab(tab);
+    try {
+      localStorage.setItem('hiremind_tab', tab);
+    } catch (e) {}
+  };
 
   // Load candidate list & status from localStorage on mount
   React.useEffect(() => {
@@ -230,67 +271,35 @@ export default function RecruiterDashboardPage() {
     }
   };
 
+  const handleCandidateApplied = (newCand: Candidate) => {
+    setCandidates((prev) => [newCand, ...prev.filter((c) => c.email !== newCand.email)]);
+  };
+
   return (
     <div className="flex min-h-screen bg-[#090d16] text-slate-100 font-sans">
       {/* Navigation Sidebar */}
       <Sidebar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         onToggleCopilot={() => setIsCopilotOpen((prev) => !prev)}
+        userSession={userSession}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header */}
-        <Header onToggleCopilot={() => setIsCopilotOpen((prev) => !prev)} />
+        <Header
+          onToggleCopilot={() => setIsCopilotOpen((prev) => !prev)}
+          userSession={userSession}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        />
 
         {/* Content Container */}
         <main className="flex-1 p-6 space-y-6 overflow-y-auto">
-          {/* Top Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/40">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-                HireMind Studio Recruteur
-                <span className="px-2.5 py-0.5 text-xs font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  Sprint Week 4 (Final E2E)
-                </span>
-              </h1>
-              <p className="text-xs text-slate-400 mt-1">
-                Plateforme intelligente multi-canaux : ATS Kanban, Qdrant Vector DB, Sandbox Code & Entretien Adaptatif.
-              </p>
-            </div>
-
-            {/* Quick Upload CV Button */}
-            <label className="relative cursor-pointer px-4 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-2 shadow-lg glow-cyan transition-all shrink-0">
-              {isUploading ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <UploadCloud className="w-4 h-4" />
-              )}
-              <span>{isUploading ? 'Parsing en cours...' : 'Uploader CV PDF (/cv/upload)'}</span>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={handleUploadCV}
-                className="hidden"
-                disabled={isUploading}
-              />
-            </label>
-          </div>
-
-          {/* Upload Status Banner */}
-          {uploadMessage && (
-            <div className="p-3 bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
-              <CheckCircle className="w-4 h-4 text-cyan-400" />
-              <span>{uploadMessage}</span>
-            </div>
-          )}
-
-          {/* KPIs Overview */}
-          <KPIOverview kpis={kpis} />
-
           {/* Dynamic Tabs Content */}
-          {currentTab === 'kanban' || currentTab === 'dashboard' ? (
+          {currentTab === 'candidate_space' ? (
+            <CandidateDashboard userSession={userSession} onApplySuccess={handleCandidateApplied} />
+          ) : currentTab === 'kanban' || currentTab === 'dashboard' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
@@ -452,6 +461,21 @@ export default function RecruiterDashboardPage() {
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
         candidates={candidates}
+      />
+
+      {/* Auth Modal for Candidate, Recruiter & Admin */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={(sess) => {
+          setUserSession(sess);
+          const targetTab = sess.role === 'candidate' ? 'candidate_space' : 'kanban';
+          setCurrentTab(targetTab);
+          try {
+            localStorage.setItem('hiremind_session', JSON.stringify(sess));
+            localStorage.setItem('hiremind_tab', targetTab);
+          } catch (e) {}
+        }}
       />
     </div>
   );

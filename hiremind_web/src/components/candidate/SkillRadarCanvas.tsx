@@ -117,18 +117,20 @@ export const SkillRadarCanvas: React.FC<SkillRadarCanvasProps> = ({ scores, size
           if (Math.cos(angle) > 0.3) textAnchor = 'start';
           if (Math.cos(angle) < -0.3) textAnchor = 'end';
 
+          const labelText = s.label || s.axis || 'Axe';
+
           return (
             <text
               key={`label-${i}`}
               x={x}
               y={y + 4}
               textAnchor={textAnchor}
-              fill="#94a3b8"
+              fill="#cbd5e1"
               fontSize="11"
-              fontWeight="600"
+              fontWeight="700"
               className="font-sans select-none"
             >
-              {s.label} ({s.score}%)
+              {labelText}: {s.score}%
             </text>
           );
         })}

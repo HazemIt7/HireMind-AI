@@ -391,8 +391,10 @@ class _HomeViewState extends State<HomeView> {
                 tickCount: 4,
                 getTitle: (index, angle) {
                   if (index >= 0 && index < scores.length) {
+                    final item = scores[index];
+                    final label = (item['label'] ?? item['axis'] ?? 'Axe').toString();
                     return RadarChartTitle(
-                      text: scores[index]['axis'] as String,
+                      text: label,
                     );
                   }
                   return const RadarChartTitle(text: '');
@@ -407,6 +409,7 @@ class _HomeViewState extends State<HomeView> {
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: scores.map((e) {
+              final label = (e['label'] ?? e['axis'] ?? 'Axe').toString();
               return Chip(
                 avatar: CircleAvatar(
                   backgroundColor: Colors.blueAccent,
@@ -416,7 +419,7 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 ),
                 label: Text(
-                  e['axis'] as String,
+                  label,
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 backgroundColor: Colors.blueAccent.withOpacity(0.05),
