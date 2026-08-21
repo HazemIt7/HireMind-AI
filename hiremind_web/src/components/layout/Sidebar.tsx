@@ -38,12 +38,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
           } catch (e) {}
         }
 
-        // Candidates ATS Pipeline Count
+        // Candidates ATS Pipeline Count (Active candidates in pipeline, excluding 'rejected')
         const storedCandidates = localStorage.getItem('hiremind_candidates');
         if (storedCandidates) {
           try {
             const parsedCandidates = JSON.parse(storedCandidates);
-            setCandidateCount(String(parsedCandidates.length));
+            if (Array.isArray(parsedCandidates)) {
+              const activeCandidates = parsedCandidates.filter((c: any) => c.status !== 'rejected');
+              setCandidateCount(String(activeCandidates.length));
+            }
           } catch (e) {}
         }
       }

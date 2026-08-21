@@ -115,11 +115,12 @@ export default function RecruiterDashboardPage() {
   const [isMatching, setIsMatching] = useState(false);
   const [matchResults, setMatchResults] = useState<any>(null);
 
+  const activeCandidatesList = candidates.filter((c) => c.status !== 'rejected');
   const kpis: RecruiterKPIs = {
     activeJobs: 12,
-    totalCandidates: candidates.length,
+    totalCandidates: activeCandidatesList.length,
     avgMatchScore: Math.round(
-      candidates.reduce((acc, c) => acc + c.matchScore, 0) / (candidates.length || 1)
+      activeCandidatesList.reduce((acc, c) => acc + c.matchScore, 0) / (activeCandidatesList.length || 1)
     ),
     timeToHireDays: 8
   };
