@@ -61,11 +61,31 @@ const INITIAL_JOBS: JobOffer[] = [
 ];
 
 export const JobOffersManager: React.FC = () => {
-  const [jobs, setJobs] = useState<JobOffer[]>(INITIAL_JOBS);
+  const [jobs, setJobs] = useState<JobOffer[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hiremind_job_offers');
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          // fallback
+        }
+      }
+    }
+    return INITIAL_JOBS;
+  });
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobOffer | null>(null);
+
+  // Sync jobs state to localStorage
+  const saveJobsToLocalStorage = (updatedJobs: JobOffer[]) => {
+    setJobs(updatedJobs);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hiremind_job_offers', JSON.stringify(updatedJobs));
+    }
+  };
 
   const handleGenerateJob = async () => {
     if (!prompt.trim()) return;
@@ -95,7 +115,7 @@ export const JobOffersManager: React.FC = () => {
           createdAt: new Date().toISOString().split('T')[0]
         };
 
-        setJobs((prev) => [newJob, ...prev]);
+        saveJobsToLocalStorage([newJob, ...jobs]);
         setPrompt('');
         setShowModal(false);
       } else {
@@ -118,7 +138,7 @@ export const JobOffersManager: React.FC = () => {
           qdrantVectorIndexed: true,
           createdAt: new Date().toISOString().split('T')[0]
         };
-        setJobs((prev) => [newJobSimulated, ...prev]);
+        saveJobsToLocalStorage([newJobSimulated, ...jobs]);
         setPrompt('');
         setShowModal(false);
       }, 800);
