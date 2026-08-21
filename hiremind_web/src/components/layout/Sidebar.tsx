@@ -24,27 +24,36 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onToggleCopilot, userSession }) => {
   const role = userSession?.role || 'admin';
   const [jobCount, setJobCount] = React.useState('2');
+  const [candidateCount, setCandidateCount] = React.useState('6');
 
   React.useEffect(() => {
-    const updateCount = () => {
+    const updateCounts = () => {
       if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('hiremind_job_offers');
-        if (stored) {
+        // Job Offers Count
+        const storedJobs = localStorage.getItem('hiremind_job_offers');
+        if (storedJobs) {
           try {
-            const parsed = JSON.parse(stored);
-            setJobCount(String(parsed.length));
-            return;
+            const parsedJobs = JSON.parse(storedJobs);
+            setJobCount(String(parsedJobs.length));
+          } catch (e) {}
+        }
+
+        // Candidates ATS Pipeline Count
+        const storedCandidates = localStorage.getItem('hiremind_candidates');
+        if (storedCandidates) {
+          try {
+            const parsedCandidates = JSON.parse(storedCandidates);
+            setCandidateCount(String(parsedCandidates.length));
           } catch (e) {}
         }
       }
-      setJobCount('2');
     };
 
-    updateCount();
-    window.addEventListener('storage', updateCount);
-    const interval = setInterval(updateCount, 1000);
+    updateCounts();
+    window.addEventListener('storage', updateCounts);
+    const interval = setInterval(updateCounts, 1000);
     return () => {
-      window.removeEventListener('storage', updateCount);
+      window.removeEventListener('storage', updateCounts);
       clearInterval(interval);
     };
   }, []);
@@ -56,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
 
   const recruiterItems = [
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
-    { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
+    { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: candidateCount },
     { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: jobCount },
     { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
     { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal }
@@ -65,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
   const adminItems = [
     { id: 'candidate_space', label: 'Espace Candidat (Démo)', icon: Users },
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
-    { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
+    { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: candidateCount },
     { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: jobCount },
     { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
     { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal },
