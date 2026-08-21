@@ -23,7 +23,7 @@ export class QdrantService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureCollectionExists();
-    await this.seedDefaultCandidates();
+    // Candidate seeding disabled to allow manual candidate creation by recruiter/candidate
   }
 
   async seedDefaultCandidates(): Promise<void> {

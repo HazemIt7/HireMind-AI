@@ -31,34 +31,7 @@ export interface JobOffer {
   createdAt: string;
 }
 
-const INITIAL_JOBS: JobOffer[] = [
-  {
-    id: 'job_018273',
-    title: 'Développeur Mobile Flutter & Backend Senior',
-    department: 'Engineering',
-    location: 'Tunis / Remote',
-    salaryRange: '45k€ - 55k€',
-    description: 'Nous recherchons un développeur senior pour concevoir nos applications mobiles Flutter et APIs NestJS.',
-    skillsRequired: ['Flutter', 'Dart', 'NestJS', 'Docker', 'Clean Architecture'],
-    softSkills: ['Autonomie', 'Mentorat', 'Rigueur'],
-    candidateCount: 4,
-    qdrantVectorIndexed: true,
-    createdAt: '2026-08-01'
-  },
-  {
-    id: 'job_018274',
-    title: 'Ingénieur Cybersécurité & Cloud DevOps',
-    department: 'Sécurité & Infra',
-    location: 'Tunis',
-    salaryRange: '50k€ - 65k€',
-    description: 'Audit de sécurité, supervision SIEM Wazuh, tests d\'intrusion et automatisation des déploiements cloud AWS.',
-    skillsRequired: ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'Python'],
-    softSkills: ['Gestion de crise', 'Analyse de risque', 'Esprit d\'équipe'],
-    candidateCount: 3,
-    qdrantVectorIndexed: true,
-    createdAt: '2026-08-02'
-  }
-];
+const INITIAL_JOBS: JobOffer[] = [];
 
 export const JobOffersManager: React.FC = () => {
   const [jobs, setJobs] = useState<JobOffer[]>(() => {

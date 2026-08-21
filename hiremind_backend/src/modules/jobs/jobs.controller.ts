@@ -54,20 +54,7 @@ export class JobsController {
   @ApiOperation({ summary: 'Lister les offres d\'emploi disponibles' })
   @ApiResponse({ status: 200, description: 'Liste des offres d\'emploi.' })
   findAll() {
-    return [
-      {
-        id: 'job_018273',
-        title: 'Développeur Mobile Flutter Senior (H/F)',
-        description: 'Nous recherchons un développeur senior pour piloter notre transition vers Flutter...',
-        skillsRequired: ['Flutter', 'Dart', 'Clean Architecture', 'NestJS']
-      },
-      {
-        id: 'job_018274',
-        title: 'Ingénieur Cybersécurité & Pentesting',
-        description: 'Audit de sécurité, SIEM Wazuh, tests d\'intrusion et hardening.',
-        skillsRequired: ['Pentesting', 'Wazuh', 'CEH', 'TCP/IP']
-      }
-    ];
+    return [];
   }
 
   @Post(':id/match')
