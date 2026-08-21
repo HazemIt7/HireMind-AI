@@ -440,7 +440,7 @@ export default function RecruiterDashboardPage() {
               )}
             </div>
           ) : currentTab === 'jobs' ? (
-            <JobOffersManager />
+            <JobOffersManager userSession={userSession} />
           ) : (
             <div className="glass-panel p-8 rounded-2xl space-y-4 text-center">
               <h3 className="text-xl font-bold text-white">Module en cours de développement</h3>

@@ -33,7 +33,15 @@ export interface JobOffer {
 
 const INITIAL_JOBS: JobOffer[] = [];
 
-export const JobOffersManager: React.FC = () => {
+import { UserSession } from '../auth/AuthModal';
+
+interface JobOffersManagerProps {
+  userSession?: UserSession | null;
+  onApplyForJob?: (job: JobOffer) => void;
+}
+
+export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession, onApplyForJob }) => {
+  const isCandidate = userSession?.role === 'candidate';
   const [jobs, setJobs] = useState<JobOffer[]>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('hiremind_job_offers');
@@ -127,20 +135,24 @@ export const JobOffersManager: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-cyan-400" />
-            Gestion des Offres d'Emploi & IA Generator
+            {isCandidate ? "Offres d'Emploi Disponibles & Entretiens IA" : "Gestion des Offres d'Emploi & IA Generator"}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Création assistée par IA avec prompt rapide, fiche de poste automatisée et vectorisation Qdrant.
+            {isCandidate
+              ? "Consultez les offres actives, postulez et passez votre entretien adaptatif en direct."
+              : "Création assistée par IA avec prompt rapide, fiche de poste automatisée et vectorisation Qdrant."}
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-2 shadow-lg glow-cyan transition-all shrink-0"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Générer une Offre par IA</span>
-        </button>
+        {!isCandidate && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-2 shadow-lg glow-cyan transition-all shrink-0"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Générer une Offre par IA</span>
+          </button>
+        )}
       </div>
 
       {/* Grid of Job Offers */}
