@@ -106,35 +106,45 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
     }
   }, [userSession]);
 
-  // Available Job Offers
-  const [jobOffers] = useState<JobOffer[]>([
-    {
-      id: 'job_018274',
-      title: 'Ingénieur Cybersécurité & Cloud DevOps',
-      department: 'Sécurité & Infra',
-      location: 'Tunis',
-      salaryRange: '50k€ - 65k€',
-      description: 'Audit de sécurité, supervision SIEM Wazuh, tests d\'intrusion et automatisation des déploiements cloud AWS.',
-      skillsRequired: ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'Python'],
-      softSkills: ['Gestion de crise', 'Analyse de risque', 'Esprit d\'équipe'],
-      candidateCount: 3,
-      qdrantVectorIndexed: true,
-      createdAt: '2026-08-02'
-    },
-    {
-      id: 'job_018273',
-      title: 'Développeur Mobile Flutter & Backend Senior',
-      department: 'Engineering',
-      location: 'Tunis / Remote',
-      salaryRange: '45k€ - 55k€',
-      description: 'Nous recherchons un développeur senior pour concevoir nos applications mobiles Flutter et APIs NestJS.',
-      skillsRequired: ['Flutter', 'Dart', 'NestJS', 'Docker', 'Clean Architecture'],
-      softSkills: ['Autonomie', 'Mentorat', 'Rigueur'],
-      candidateCount: 4,
-      qdrantVectorIndexed: true,
-      createdAt: '2026-08-01'
+  // Available Job Offers (Read dynamically from recruiter job offers in localStorage)
+  const [jobOffers, setJobOffers] = useState<JobOffer[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hiremind_job_offers');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+      }
     }
-  ]);
+    return [];
+  });
+
+  // Sync job offers if updated in recruiter space
+  React.useEffect(() => {
+    const updateJobs = () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('hiremind_job_offers');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              setJobOffers(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
+        setJobOffers([]);
+      }
+    };
+
+    window.addEventListener('storage', updateJobs);
+    const interval = setInterval(updateJobs, 1000);
+    return () => {
+      window.removeEventListener('storage', updateJobs);
+      clearInterval(interval);
+    };
+  }, []);
 
   // AI Interview Engine Modal State
   const [activeInterviewJob, setActiveInterviewJob] = useState<JobOffer | null>(null);
@@ -372,41 +382,50 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           Offres d'Emploi Disponibles — Postuler & Passer Entretien IA
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {jobOffers.map((job) => (
-            <div
-              key={job.id}
-              className="glass-panel p-5 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-4 flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <span className="px-2.5 py-0.5 text-[10px] font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  {job.department} • {job.location}
-                </span>
-                <h3 className="text-base font-bold text-white">{job.title}</h3>
-                <p className="text-xs text-slate-400 line-clamp-2">{job.description}</p>
+        {jobOffers.length === 0 ? (
+          <div className="glass-panel p-8 rounded-2xl border border-slate-800 text-center space-y-2 bg-slate-900/40">
+            <p className="text-sm font-semibold text-slate-300">Aucune offre d'emploi disponible pour le moment</p>
+            <p className="text-xs text-slate-500">
+              Dès qu'un recruteur publie ou génère une nouvelle offre d'emploi, elle s'affichera ici pour vous permettre de postuler et de passer votre entretien IA.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {jobOffers.map((job) => (
+              <div
+                key={job.id}
+                className="glass-panel p-5 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-4 flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <span className="px-2.5 py-0.5 text-[10px] font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                    {job.department} • {job.location}
+                  </span>
+                  <h3 className="text-base font-bold text-white">{job.title}</h3>
+                  <p className="text-xs text-slate-400 line-clamp-2">{job.description}</p>
 
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {job.skillsRequired.map((s, idx) => (
-                    <span key={idx} className="px-2 py-0.5 text-[10px] rounded bg-slate-800 text-cyan-300 border border-slate-700">
-                      {s}
-                    </span>
-                  ))}
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {job.skillsRequired.map((s, idx) => (
+                      <span key={idx} className="px-2 py-0.5 text-[10px] rounded bg-slate-800 text-cyan-300 border border-slate-700">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-xs text-emerald-400 font-mono font-semibold">{job.salaryRange}</span>
+                  <button
+                    onClick={() => handleStartInterview(job)}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-1.5 shadow-lg glow-cyan transition-all"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Passer Entretien IA</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-emerald-400 font-mono font-semibold">{job.salaryRange}</span>
-                <button
-                  onClick={() => handleStartInterview(job)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-1.5 shadow-lg glow-cyan transition-all"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  <span>Passer Entretien IA</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* AI Adaptive Interview Engine Modal */}
