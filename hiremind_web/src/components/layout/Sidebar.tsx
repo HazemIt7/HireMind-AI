@@ -23,16 +23,41 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onToggleCopilot, userSession }) => {
   const role = userSession?.role || 'admin';
+  const [jobCount, setJobCount] = React.useState('2');
+
+  React.useEffect(() => {
+    const updateCount = () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('hiremind_job_offers');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            setJobCount(String(parsed.length));
+            return;
+          } catch (e) {}
+        }
+      }
+      setJobCount('2');
+    };
+
+    updateCount();
+    window.addEventListener('storage', updateCount);
+    const interval = setInterval(updateCount, 1000);
+    return () => {
+      window.removeEventListener('storage', updateCount);
+      clearInterval(interval);
+    };
+  }, []);
 
   const candidateItems = [
     { id: 'candidate_space', label: 'Mon Espace Candidat', icon: Users, badge: 'IA' },
-    { id: 'jobs', label: 'Offres & Entretiens IA', icon: Briefcase }
+    { id: 'jobs', label: 'Offres & Entretiens IA', icon: Briefcase, badge: jobCount }
   ];
 
   const recruiterItems = [
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
-    { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: '2' },
+    { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: jobCount },
     { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
     { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal }
   ];
@@ -41,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
     { id: 'candidate_space', label: 'Espace Candidat (Démo)', icon: Users },
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { id: 'kanban', label: 'Pipeline Candidates (ATS)', icon: Users, badge: '6' },
-    { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: '2' },
+    { id: 'jobs', label: 'Offres & IA Generator', icon: Briefcase, badge: jobCount },
     { id: 'ai_matching', label: 'AI Matching Insights', icon: Sparkles },
     { id: 'sandbox', label: 'Technical Sandbox', icon: Terminal },
     { id: 'settings', label: 'Panneau Super Admin', icon: Settings }
