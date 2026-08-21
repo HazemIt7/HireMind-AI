@@ -23,8 +23,8 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onToggleCopilot, userSession }) => {
   const role = userSession?.role || 'admin';
-  const [jobCount, setJobCount] = React.useState('2');
-  const [candidateCount, setCandidateCount] = React.useState('6');
+  const [jobCount, setJobCount] = React.useState('0');
+  const [candidateCount, setCandidateCount] = React.useState('0');
 
   React.useEffect(() => {
     const updateCounts = () => {
@@ -34,8 +34,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
         if (storedJobs) {
           try {
             const parsedJobs = JSON.parse(storedJobs);
-            setJobCount(String(parsedJobs.length));
-          } catch (e) {}
+            if (Array.isArray(parsedJobs)) {
+              setJobCount(String(parsedJobs.length));
+            } else {
+              setJobCount('0');
+            }
+          } catch (e) {
+            setJobCount('0');
+          }
+        } else {
+          setJobCount('0');
         }
 
         // Candidates ATS Pipeline Count (Active candidates in pipeline, excluding 'rejected')
@@ -46,8 +54,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onTog
             if (Array.isArray(parsedCandidates)) {
               const activeCandidates = parsedCandidates.filter((c: any) => c.status !== 'rejected');
               setCandidateCount(String(activeCandidates.length));
+            } else {
+              setCandidateCount('0');
             }
-          } catch (e) {}
+          } catch (e) {
+            setCandidateCount('0');
+          }
+        } else {
+          setCandidateCount('0');
         }
       }
     };
