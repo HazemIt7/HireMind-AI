@@ -101,6 +101,53 @@ FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
   }
 
   /**
+   * Generate an intelligent Copilot RH response using local Ollama LLM
+   */
+  async generateCopilotResponse(query: string, candidates: any[]): Promise<string | null> {
+    const activeModel = await this.detectAvailableModel();
+    if (!activeModel) return null;
+
+    const candSummary = candidates.map(c => 
+      `- ${c.fullName || c.name || 'Candidat'} (${c.roleApplied || 'Profil'}) : Match ${c.matchScore || 85}%, Statut: ${c.status || 'En attente'}, Compétences: ${(c.skills || []).join(', ')}`
+    ).join('\n');
+
+    const prompt = `
+Tu es l'assistant IA Copilot RH de la plateforme HireMind AI.
+Réponds de manière professionnelle, synthétique et utile en Markdown au recruteur.
+
+DONNÉES DES CANDIDATS ACTUELS DANS LE PIPELINE :
+${candSummary || 'Aucun candidat enregistré pour le moment.'}
+
+QUESTION DU RECRUTEUR :
+"${query}"
+
+DIRECTIVES :
+- Réponds en français clair, structuré avec des puces et du texte en gras (**text**).
+- Sois constructif, précis et d'une aide RH de premier ordre.
+`;
+
+    try {
+      const response = await fetch(`${this.ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: activeModel,
+          prompt: prompt,
+          stream: false
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return (data.response || '').trim();
+      }
+    } catch (err: any) {
+      this.logger.warn(`Local LLM Copilot call failed: ${err.message}`);
+    }
+    return null;
+  }
+
+  /**
    * Detect which Ollama model is currently downloaded and available to run
    */
   private async detectAvailableModel(): Promise<string | null> {

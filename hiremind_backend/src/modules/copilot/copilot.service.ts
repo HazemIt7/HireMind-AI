@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { QdrantService } from '../jobs/qdrant.service';
+import { LocalLlmService } from '../cv/local-llm.service';
 
 export interface CopilotQueryDto {
   query: string;
@@ -17,7 +18,10 @@ export interface CopilotResponse {
 export class CopilotService {
   private readonly logger = new Logger(CopilotService.name);
 
-  constructor(private readonly qdrantService: QdrantService) {}
+  constructor(
+    private readonly qdrantService: QdrantService,
+    private readonly localLlmService: LocalLlmService
+  ) {}
 
   async processQuery(dto: CopilotQueryDto): Promise<CopilotResponse> {
     const q = dto.query.toLowerCase().trim();
@@ -164,18 +168,19 @@ export class CopilotService {
       };
     }
 
-    // 4. Default / General AI Assistant Response
+    // 4. Default / General AI Assistant Response via Local Open-Source LLM (Ollama)
+    const llmAnswer = await this.localLlmService.generateCopilotResponse(dto.query, candidates);
+
     return {
       type: 'general',
-      answer: `🤖 **IA Copilot RH Assistant** :\n\n` +
+      answer: llmAnswer || `🤖 **IA Copilot RH Assistant** :\n\n` +
         `J'ai analysé votre requête : *"${dto.query}"*.\n\n` +
         `Sur la base des données vectorielles indexées dans Qdrant et des dossiers candidats :\n` +
-        `• Les candidats les plus performants actuellement sont **Slim Hadj** (94%) et **Hazem Ayachi** (96%).\n` +
         `• Le module d'entretien adaptatif et le bac à sable de code sont prêts pour faire passer les tests techniques.`,
       suggestedActions: [
-        `Compare Slim Hadj et Hazem Ayachi`,
-        `Qui est le meilleur candidat en Cybersécurité ?`,
-        `Fais-moi un résumé du pipeline`
+        `Fais-moi un résumé du pipeline`,
+        `Qui est le meilleur candidat ?`,
+        `Suggère des questions d'entretien`
       ]
     };
   }
