@@ -13,7 +13,9 @@ import {
   Clock,
   Layers,
   ChevronRight,
-  Database
+  Database,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 
 export interface JobOffer {
@@ -66,6 +68,16 @@ export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession,
     if (typeof window !== 'undefined') {
       localStorage.setItem('hiremind_job_offers', JSON.stringify(updatedJobs));
     }
+  };
+
+  const handleDeleteJob = (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updatedJobs = jobs.filter((j) => j.id !== jobId);
+    saveJobsToLocalStorage(updatedJobs);
+  };
+
+  const handleClearAllJobs = () => {
+    saveJobsToLocalStorage([]);
   };
 
   const handleGenerateJob = async () => {
@@ -145,39 +157,73 @@ export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession,
         </div>
 
         {!isCandidate && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-2 shadow-lg glow-cyan transition-all shrink-0"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Générer une Offre par IA</span>
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {jobs.length > 0 && (
+              <button
+                onClick={handleClearAllJobs}
+                className="px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-slate-900 border border-slate-800 hover:border-rose-500/50 text-slate-300 hover:text-rose-400 flex items-center gap-1.5 transition-all"
+                title="Supprimer toutes les offres existantes"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Vider les offres</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white flex items-center gap-2 shadow-lg glow-cyan transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Générer une Offre par IA</span>
+            </button>
+          </div>
         )}
       </div>
 
       {/* Grid of Job Offers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {jobs.map((job) => (
-          <div
-            key={job.id}
-            onClick={() => setSelectedJob(job)}
-            className="glass-panel p-5 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer group space-y-4 bg-slate-900/60"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="px-2.5 py-0.5 text-[11px] font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  {job.department}
-                </span>
-                <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors mt-2">
-                  {job.title}
-                </h3>
+      {jobs.length === 0 ? (
+        <div className="glass-panel p-12 rounded-2xl border border-slate-800 text-center space-y-3 bg-slate-900/40">
+          <Briefcase className="w-8 h-8 text-cyan-400/50 mx-auto" />
+          <p className="text-base font-bold text-slate-200">Aucune offre d'emploi enregistrée</p>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            {isCandidate
+              ? "Aucune offre n'a encore été publiée par les recruteurs."
+              : "Cliquez sur 'Générer une Offre par IA' pour créer votre première fiche de poste sur mesure avec prompt intelligent."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {jobs.map((job) => (
+            <div
+              key={job.id}
+              onClick={() => setSelectedJob(job)}
+              className="glass-panel p-5 rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer group space-y-4 bg-slate-900/60 relative"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="px-2.5 py-0.5 text-[11px] font-mono font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                    {job.department}
+                  </span>
+                  <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition-colors mt-2">
+                    {job.title}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {job.qdrantVectorIndexed && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg">
+                      <Database className="w-3 h-3" /> Qdrant Indexed
+                    </span>
+                  )}
+                  {!isCandidate && (
+                    <button
+                      onClick={(e) => handleDeleteJob(job.id, e)}
+                      className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/30 transition-all"
+                      title="Supprimer cette offre d'emploi"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-              {job.qdrantVectorIndexed && (
-                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-1 rounded-lg">
-                  <Database className="w-3 h-3" /> Qdrant Indexed
-                </span>
-              )}
-            </div>
 
             <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
               {job.description}
@@ -210,6 +256,7 @@ export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession,
           </div>
         ))}
       </div>
+      )}
 
       {/* AI Generator Modal */}
       {showModal && (
