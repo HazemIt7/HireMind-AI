@@ -74,33 +74,47 @@ export default function RecruiterDashboardPage() {
     } catch (e) {}
   };
 
-  // Load candidate list & status from localStorage on mount
-  React.useEffect(() => {
+  // Load & Sync candidate list from localStorage continuously
+  const loadCandidatesFromStorage = () => {
     try {
       const saved = localStorage.getItem('hiremind_candidates');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setCandidates(parsed);
+          return;
         }
       }
+      setCandidates([]);
     } catch (error) {
       console.error('Failed to load candidates from localStorage:', error);
     } finally {
       setIsInitialized(true);
     }
+  };
+
+  React.useEffect(() => {
+    loadCandidatesFromStorage();
+
+    const handleStorageChange = () => loadCandidatesFromStorage();
+    window.addEventListener('storage', handleStorageChange);
+    const interval = setInterval(loadCandidatesFromStorage, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
-  // Save candidates list to localStorage whenever state updates
+  // Save candidates list to localStorage whenever state updates manually
   React.useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && candidates.length > 0) {
       localStorage.setItem('hiremind_candidates', JSON.stringify(candidates));
     }
   }, [candidates, isInitialized]);
 
-  const handleResetCandidates = () => {
-    setCandidates(INITIAL_CANDIDATES);
-    localStorage.removeItem('hiremind_candidates');
+  const handleRefreshCandidates = () => {
+    loadCandidatesFromStorage();
   };
 
   // Live Sandbox Interactive State
@@ -310,12 +324,12 @@ export default function RecruiterDashboardPage() {
                   </span>
                 </h2>
                 <button
-                  onClick={handleResetCandidates}
-                  className="text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl transition-colors"
-                  title="Réinitialiser les statuts aux valeurs par défaut"
+                  onClick={handleRefreshCandidates}
+                  className="text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-cyan-500/50 px-3.5 py-1.5 rounded-xl transition-all shadow-md"
+                  title="Recharger les candidats depuis le stockage"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Réinitialiser la liste</span>
+                  <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Actualiser les candidats</span>
                 </button>
               </div>
               <KanbanBoard
