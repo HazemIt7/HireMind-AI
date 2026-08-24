@@ -107,8 +107,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
       // Local fallback simulator for smooth dev testing
       if (!isRegister) {
         let fallbackRole: 'candidate' | 'recruiter' | 'admin' = 'candidate';
-        let fName = firstName || 'Utilisateur';
-        let lName = lastName || 'HireMind';
+        let fName = firstName;
+        let lName = lastName;
+
+        if (!fName || !lName) {
+          const parts = email.split('@')[0].split('.');
+          fName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Candidat';
+          lName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'IA';
+        }
 
         if (email.includes('admin') || role === 'admin') {
           fallbackRole = 'admin';

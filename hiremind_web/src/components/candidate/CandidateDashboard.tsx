@@ -180,6 +180,15 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         const data = await res.json();
         setUploadMessage('Passeport de Compétences IA mis à jour avec succès !');
 
+        const newSkills = data.parsedData?.skills?.technical || data.skills || skillsList;
+        const newRadar = (data.radarScores && data.radarScores.length > 0) ? data.radarScores : radarScores;
+        const newSummary = data.parsedData?.textSummary || summary || `CV parsé avec succès : ${file.name}`;
+        const domainRole = data.parsedData?.primaryDomain
+          ? `${data.parsedData.primaryDomain} Specialist`
+          : 'Spécialiste Technique IA';
+        const candName = data.fullName || (data.parsedData?.fullName ? data.parsedData.fullName : `${userSession.firstName} ${userSession.lastName}`);
+        const candPhone = data.phone || '+216 20 000 000';
+
         if (data.parsedData?.skills?.technical) {
           setSkillsList(data.parsedData.skills.technical);
         }
@@ -190,6 +199,38 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           setSummary(data.parsedData.textSummary);
         } else {
           setSummary(`CV parsé avec succès : ${file.name}`);
+        }
+
+        // Build candidate profile with exact parsed CV info
+        const uploadedCand: Candidate = {
+          id: `cand_${userSession.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          fullName: candName,
+          email: userSession.email,
+          phone: candPhone,
+          roleApplied: domainRole,
+          matchScore: 94,
+          status: 'parsed',
+          skills: newSkills,
+          radarScores: newRadar,
+          appliedDate: new Date().toISOString().split('T')[0],
+          experienceYears: data.parsedData?.seniorityLevel === 'Senior' ? 5 : 2,
+          summary: newSummary
+        };
+
+        if (onApplySuccess) {
+          onApplySuccess(uploadedCand);
+        }
+
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('hiremind_candidates');
+          let currentList: Candidate[] = [];
+          if (stored) {
+            try {
+              currentList = JSON.parse(stored);
+            } catch (e) {}
+          }
+          const updatedList = [uploadedCand, ...currentList.filter((c) => c.email !== uploadedCand.email)];
+          localStorage.setItem('hiremind_candidates', JSON.stringify(updatedList));
         }
       } else {
         throw new Error('Erreur parsing backend');
