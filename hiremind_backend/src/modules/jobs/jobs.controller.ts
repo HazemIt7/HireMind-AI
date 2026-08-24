@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Inject, forwardRef } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { QdrantService } from './qdrant.service';
 import { LocalLlmService } from '../cv/local-llm.service';
@@ -8,6 +8,7 @@ import { LocalLlmService } from '../cv/local-llm.service';
 export class JobsController {
   constructor(
     private readonly qdrantService: QdrantService,
+    @Inject(forwardRef(() => LocalLlmService))
     private readonly localLlmService: LocalLlmService
   ) {}
 

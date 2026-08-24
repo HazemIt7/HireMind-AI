@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JobsController } from './jobs.controller';
 import { QdrantService } from './qdrant.service';
 import { CvModule } from '../cv/cv.module';
 
 @Module({
-  imports: [CvModule],
+  imports: [forwardRef(() => CvModule)],
   controllers: [JobsController],
   providers: [QdrantService],
   exports: [QdrantService],

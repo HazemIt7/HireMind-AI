@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Headers, UnauthorizedException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Get, Headers, UnauthorizedException, UseInterceptors, UploadedFile, Inject, forwardRef } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from '../auth/user.service';
@@ -11,6 +11,7 @@ const pdf = require('pdf-parse');
 export class CvController {
   constructor(
     private readonly userService: UserService,
+    @Inject(forwardRef(() => QdrantService))
     private readonly qdrantService: QdrantService,
     private readonly localLlmService: LocalLlmService,
   ) {}
