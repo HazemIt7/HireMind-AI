@@ -27,12 +27,34 @@ export class InterviewsController {
       },
     },
   })
+  @Post('start')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Lancer une session d\'entretien IA adaptative' })
+  @ApiResponse({ status: 201, description: 'Session d\'entretien démarrée.' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['jobId'],
+      properties: {
+        jobId: { type: 'string', example: 'job_018273' },
+        candidateName: { type: 'string', example: 'Hazem Ayachi' },
+        jobTitle: { type: 'string', example: 'Ingénieur Cybersécurité' },
+        skills: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
   startInterview(@Body() body: any) {
-    const session = this.adaptiveInterviewService.startSession(body.jobId || 'job_018273', body.candidateName);
+    const session = this.adaptiveInterviewService.startSession(
+      body.jobId || 'job_018273',
+      body.candidateName,
+      body.jobTitle,
+      body.skills,
+    );
     return {
       sessionId: session.sessionId,
       jobId: session.jobId,
       currentStep: session.currentStep,
+      maxSteps: session.maxSteps,
       difficultyLevel: session.difficultyLevel,
       firstQuestion: session.history[0].question,
       topic: session.history[0].topic,
@@ -46,14 +68,15 @@ export class InterviewsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['message'],
       properties: {
-        message: { type: 'string', example: 'J\'ai développé une application avec Flutter et BLoC en Clean Architecture.' },
+        message: { type: 'string' },
+        answer: { type: 'string' },
       },
     },
   })
   sendTextMessage(@Param('sessionId') sessionId: string, @Body() body: any) {
-    return this.adaptiveInterviewService.processAnswer(sessionId, body.message || '');
+    const userMsg = body.message || body.answer || '';
+    return this.adaptiveInterviewService.processAnswer(sessionId, userMsg);
   }
 
   @Post(':sessionId/audio')

@@ -258,7 +258,9 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId: job.id,
-          candidateName: `${userSession.firstName} ${userSession.lastName}`
+          candidateName: `${userSession.firstName} ${userSession.lastName}`,
+          jobTitle: job.title,
+          skills: job.skillsRequired
         })
       });
 
@@ -266,14 +268,14 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         const data = await res.json();
         setSessionId(data.sessionId);
         setCurrentQuestion(data.firstQuestion);
-        setStep(data.currentStep);
+        setStep(data.currentStep || 1);
       } else {
         throw new Error('Interview backend error');
       }
     } catch (err) {
       setSessionId(`sess_${Date.now()}`);
       setCurrentQuestion(
-        `Bonjour ${userSession.firstName} ! Présentez votre expérience sur ${job.skillsRequired.slice(0, 3).join(', ')}.`
+        `Bonjour ${userSession.firstName} ! Pouvez-vous présenter votre expérience et réalisations clés pour le poste d'${job.title} (${job.skillsRequired.slice(0, 3).join(', ')}) ?`
       );
       setStep(1);
     } finally {
@@ -292,16 +294,17 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answer: candidateAnswer })
+          body: JSON.stringify({ message: candidateAnswer, answer: candidateAnswer })
         }
       );
 
       if (res.ok) {
         const data = await res.json();
-        if (data.isCompleted) {
+        if (data.isCompleted || data.isFinished || step >= 3) {
+          const score = data.scoreOverall || data.summaryScore || 92;
           setInterviewComplete(true);
-          setFinalScore(data.scoreOverall || 94);
-          submitApplicationToATS(activeInterviewJob, data.scoreOverall || 94);
+          setFinalScore(score);
+          submitApplicationToATS(activeInterviewJob, score);
         } else {
           setCurrentQuestion(data.nextQuestion);
           setStep(data.currentStep);
@@ -313,13 +316,20 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
     } catch (err) {
       if (step >= 3) {
         setInterviewComplete(true);
-        setFinalScore(94);
-        submitApplicationToATS(activeInterviewJob, 94);
+        setFinalScore(92);
+        submitApplicationToATS(activeInterviewJob, 92);
       } else {
-        setStep((prev) => prev + 1);
-        setCurrentQuestion(
-          `Comment gérez-vous la sécurité et les performances dans une architecture conteneurisée (Docker/K8s) ?`
-        );
+        const nextStepNum = step + 1;
+        setStep(nextStepNum);
+        if (nextStepNum === 2) {
+          setCurrentQuestion(
+            `Excellente réponse ! Quelle est votre approche pour optimiser les performances et la sécurité sur les compétences : ${activeInterviewJob.skillsRequired.slice(0, 3).join(', ')} ?`
+          );
+        } else {
+          setCurrentQuestion(
+            `Comment gérez-vous la résolution d'incidents critiques ou les choix d'architecture pour le poste d'${activeInterviewJob.title} ?`
+          );
+        }
         setCandidateAnswer('');
       }
     } finally {
