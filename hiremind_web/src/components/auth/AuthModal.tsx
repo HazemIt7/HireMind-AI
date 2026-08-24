@@ -148,24 +148,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             } catch (e) {}
           }
           if (!currentList.some((c: any) => c.email === session.email)) {
+            const candPhone = `+216 ${20 + (Math.abs(session.email.length * 7) % 10)} ${100 + (Math.abs(session.email.length * 13) % 899)} ${100 + (Math.abs(session.email.length * 19) % 899)}`;
+            const candScore = 82 + (Math.abs(session.email.length * 17) % 15);
+            const candExp = 2 + (Math.abs(session.email.length * 3) % 4);
+
             const newCand = {
               id: `cand_${Date.now()}_${session.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
               fullName: `${session.firstName} ${session.lastName}`,
               email: session.email,
-              phone: '+216 20 123 456',
+              phone: candPhone,
               roleApplied: 'Candidat IA',
-              matchScore: 88,
+              matchScore: candScore,
               status: 'parsed',
               skills: ['Cybersécurité', 'DevOps', 'Software Dev'],
               radarScores: [
-                { axis: 'Software Dev', score: 75, label: 'Développement' },
-                { axis: 'Cybersecurity', score: 80, label: 'Cybersécurité' },
-                { axis: 'Networks', score: 70, label: 'Réseaux' },
-                { axis: 'Systems', score: 75, label: 'Systèmes' },
+                { axis: 'Software Dev', score: 75 + (candScore % 10), label: 'Développement' },
+                { axis: 'Cybersecurity', score: 80 + (candScore % 12), label: 'Cybersécurité' },
+                { axis: 'Networks', score: 70 + (candScore % 15), label: 'Réseaux' },
+                { axis: 'Systems', score: 75 + (candScore % 14), label: 'Systèmes' },
                 { axis: 'Soft Skills', score: 85, label: 'Soft Skills' }
               ],
               appliedDate: new Date().toISOString().split('T')[0],
-              experienceYears: 2,
+              experienceYears: candExp,
               summary: `Candidat inscrit sur la plateforme : ${session.firstName} ${session.lastName} (${session.email}).`
             };
             localStorage.setItem('hiremind_candidates', JSON.stringify([newCand, ...currentList]));

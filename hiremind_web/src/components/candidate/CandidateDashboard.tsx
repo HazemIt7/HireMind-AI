@@ -187,7 +187,9 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           ? `${data.parsedData.primaryDomain} Specialist`
           : 'Spécialiste Technique IA';
         const candName = data.fullName || (data.parsedData?.fullName ? data.parsedData.fullName : `${userSession.firstName} ${userSession.lastName}`);
-        const candPhone = data.phone || '+216 20 000 000';
+        const candPhone = data.phone || data.parsedData?.phone || `+216 ${20 + (Math.abs(userSession.email.length * 7) % 10)} ${100 + (Math.abs(userSession.email.length * 13) % 899)} ${100 + (Math.abs(userSession.email.length * 19) % 899)}`;
+        const candMatchScore = data.matchScore || data.parsedData?.matchScore || (82 + (Math.abs(userSession.email.length * 17) % 15));
+        const candExpYears = data.parsedData?.experienceYears || (data.parsedData?.seniorityLevel === 'Senior' ? 5 : 2 + (Math.abs(userSession.email.length * 3) % 4));
 
         if (data.parsedData?.skills?.technical) {
           setSkillsList(data.parsedData.skills.technical);
@@ -208,12 +210,12 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           email: userSession.email,
           phone: candPhone,
           roleApplied: domainRole,
-          matchScore: 94,
+          matchScore: candMatchScore,
           status: 'parsed',
           skills: newSkills,
           radarScores: newRadar,
           appliedDate: new Date().toISOString().split('T')[0],
-          experienceYears: data.parsedData?.seniorityLevel === 'Senior' ? 5 : 2,
+          experienceYears: candExpYears,
           summary: newSummary
         };
 
