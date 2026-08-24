@@ -75,9 +75,9 @@ export class InterviewsController {
       },
     },
   })
-  sendTextMessage(@Param('sessionId') sessionId: string, @Body() body: any) {
+  async sendTextMessage(@Param('sessionId') sessionId: string, @Body() body: any) {
     const userMsg = body.message || body.answer || '';
-    return this.adaptiveInterviewService.processAnswer(sessionId, userMsg);
+    return await this.adaptiveInterviewService.processAnswer(sessionId, userMsg);
   }
 
   @Post(':sessionId/audio')
@@ -88,7 +88,7 @@ export class InterviewsController {
   async sendVoiceMessage(@Param('sessionId') sessionId: string) {
     const fakeAudioBuffer = Buffer.from('audio_sample_data');
     const audioResult = await this.audioStreamingService.processVoicePipeline(fakeAudioBuffer);
-    const adaptiveResult = this.adaptiveInterviewService.processAnswer(sessionId, audioResult.transcription);
+    const adaptiveResult = await this.adaptiveInterviewService.processAnswer(sessionId, audioResult.transcription);
 
     return {
       transcription: audioResult.transcription,

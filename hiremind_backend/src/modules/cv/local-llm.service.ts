@@ -327,6 +327,80 @@ FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
   }
 
   /**
+   * Evaluate a candidate's interview answer using Local Ollama LLM
+   */
+  async evaluateAnswerWithLocalLlm(
+    question: string,
+    answer: string,
+    jobTitle: string
+  ): Promise<{ score: number; feedback: string }> {
+    const activeModel = await this.detectAvailableModel();
+
+    if (activeModel && answer.trim().length > 5) {
+      const prompt = `
+Tu es un Directeur Technique et Auditeur RH Senior.
+Évalue la réponse d'un candidat à la question ci-dessous pour le poste d'${jobTitle || 'Ingénieur Technique'}.
+
+QUESTION POSÉE :
+${question}
+
+RÉPONSE DU CANDIDAT :
+${answer}
+
+CONSIGNE :
+Attribue une note globale (score entre 45 et 98) en fonction de la précision technique, des exemples d'architecture et de la clarté.
+Rédige un feedback constructif en 1 phrase courte.
+
+FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
+{
+  "score": 88,
+  "feedback": "Excellente réponse avec des termes techniques appropriés et des exemples d'architecture concrets."
+}
+`;
+
+      try {
+        const response = await fetch(`${this.ollamaUrl}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: activeModel,
+            prompt: prompt,
+            stream: false,
+            format: 'json'
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let rawText = (data.response || '').trim();
+          if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+          }
+          const parsed = JSON.parse(rawText);
+          if (parsed && typeof parsed.score === 'number') {
+            const finalScore = Math.min(98, Math.max(45, Math.round(parsed.score)));
+            const feedbackText = parsed.feedback || (finalScore > 75 ? 'Excellente réponse technique.' : 'Réponse satisfaisante.');
+            this.logger.log(`Local LLM evaluated candidate answer: Score ${finalScore}%`);
+            return { score: finalScore, feedback: feedbackText };
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Local LLM answer evaluation fallback: ${err.message}`);
+      }
+    }
+
+    // Dynamic NLP Heuristic Fallback
+    const lengthBonus = Math.min(25, answer.length / 4);
+    const keywords = ['architecture', 'clean', 'wazuh', 'siem', 'pentest', 'ansible', 'hardening', 'kubernetes', 'terraform', 'aws', 'docker', 'ci/cd', 'nestjs', 'postgresql', 'zerotrust', 'mtls', 'async', 'performance'];
+    const matchedCount = keywords.filter(k => answer.toLowerCase().includes(k)).length;
+    const keywordScore = Math.min(50, matchedCount * 15);
+    const baseScore = Math.min(98, Math.max(55, Math.round(35 + lengthBonus + keywordScore)));
+    const fbText = baseScore > 75 ? 'Excellente réponse avec des termes techniques appropriés.' : 'Réponse correcte mais manque d\'exemples d\'architecture concrets.';
+
+    return { score: baseScore, feedback: fbText };
+  }
+
+  /**
    * Detect which Ollama model is currently downloaded and available to run
    */
   private async detectAvailableModel(): Promise<string | null> {

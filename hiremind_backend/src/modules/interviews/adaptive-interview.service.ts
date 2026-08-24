@@ -73,9 +73,9 @@ export class AdaptiveInterviewService {
   }
 
   /**
-   * Process incoming answer and calculate adaptive next question
+   * Process incoming answer and calculate adaptive next question using Local Ollama LLM
    */
-  processAnswer(sessionId: string, answerText: string) {
+  async processAnswer(sessionId: string, answerText: string) {
     let session = this.sessions.get(sessionId);
 
     // Fallback auto-create session if requested without prior start
@@ -104,12 +104,16 @@ export class AdaptiveInterviewService {
     const currentHistory = session.history[session.history.length - 1];
     currentHistory.answer = answerText;
 
-    // Evaluate answer technical depth (0 to 100)
-    const evaluatedScore = this.evaluateAnswerQuality(answerText, session.difficultyLevel);
+    // Evaluate answer technical depth with Local Ollama LLM
+    const evalResult = await this.localLlmService.evaluateAnswerWithLocalLlm(
+      currentHistory.question,
+      answerText,
+      session.jobTitle,
+    );
+
+    const evaluatedScore = evalResult.score;
     currentHistory.score = evaluatedScore;
-    currentHistory.feedback = evaluatedScore > 75 
-      ? 'Excellente réponse avec des termes techniques appropriés.' 
-      : 'Réponse correcte mais manque d\'exemples d\'architecture concrets.';
+    currentHistory.feedback = evalResult.feedback;
 
     // Adapt difficulty level
     if (evaluatedScore >= 80 && session.difficultyLevel < 3) {
