@@ -33,14 +33,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleCopilot, userSession, on
 
       {/* Right Header Actions */}
       <div className="flex items-center gap-4">
-        {/* IA Copilot RH Trigger */}
-        <button
-          onClick={onToggleCopilot}
-          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg glow-cyan transition-all"
-        >
-          <Sparkles className="w-4 h-4 animate-pulse" />
-          <span>IA Copilot RH</span>
-        </button>
+        {/* IA Copilot RH Trigger (Recruiter & Admin only) */}
+        {userSession?.role !== 'candidate' && (
+          <button
+            onClick={onToggleCopilot}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg glow-cyan transition-all"
+          >
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            <span>IA Copilot RH</span>
+          </button>
+        )}
 
         {/* Backend Live Indicator */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300">
