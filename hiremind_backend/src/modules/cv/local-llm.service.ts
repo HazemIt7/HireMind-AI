@@ -148,6 +148,70 @@ DIRECTIVES :
   }
 
   /**
+   * Generate structured job offer using local Ollama LLM
+   */
+  async generateJobOfferWithLocalLlm(promptText: string): Promise<any | null> {
+    const activeModel = await this.detectAvailableModel();
+    if (!activeModel) return null;
+
+    const prompt = `
+Tu es un Expert RH et Directeur du Recrutement spécialisé dans les Métiers du Numérique.
+
+MISSION :
+Génère une fiche de poste professionnelle, structurée et complète en fonction de la demande du recruteur ci-dessous.
+
+DEMANDE DU RECRUTEUR :
+"${promptText}"
+
+RÈGLES STRICTES DE GÉNÉRATION :
+- Génère un titre exact ("title") correspondant au poste demandé (ex: "Ingénieur en Cybersécurité", "Ingénieur Cloud DevOps", "Développeur Fullstack"). Ne génère JAMAIS un titre de Développeur Flutter sauf si le prompt le demande explicitement.
+- Extrais la fourchette de salaire ("salaryRange") mentionnée ou évalue une fourchette du marché (ex: "45k€ - 55k€" ou "45k$ - 55k$").
+- Extrais le département ("department") approprié (ex: "Cybersécurité & Infra", "Ingénierie Cloud & DevOps", "Développement Software").
+- Extrais les compétences techniques ("skillsRequired") mentionnées dans la demande (ex: ["Wazuh", "Ansible", "SIEM", "Linux", "Hardening"] ou ["Kubernetes", "Terraform", "CI/CD", "AWS"]).
+- Rédige une description professionnelle de 2-3 phrases ("description") décrivant le rôle et les missions.
+
+FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
+{
+  "title": "Titre exact de l'offre d'emploi",
+  "department": "Département métier",
+  "location": "Lieu de travail ou Remote",
+  "salaryRange": "Fourchette de salaire",
+  "description": "Description détaillée et missions principales du poste.",
+  "skillsRequired": ["Compétence 1", "Compétence 2", "Compétence 3", "Compétence 4"],
+  "softSkills": ["Soft skill 1", "Soft skill 2", "Soft skill 3"]
+}
+`;
+
+    try {
+      this.logger.log(`Invoking Ollama LLM '${activeModel}' to generate job offer for prompt: "${promptText}"`);
+      const response = await fetch(`${this.ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: activeModel,
+          prompt: prompt,
+          stream: false,
+          format: 'json'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        let rawText = (data.response || '').trim();
+        if (rawText.startsWith('```')) {
+          rawText = rawText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+        }
+        const parsed = JSON.parse(rawText);
+        return parsed;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Local LLM job offer generation failed: ${err.message}`);
+    }
+
+    return null;
+  }
+
+  /**
    * Detect which Ollama model is currently downloaded and available to run
    */
   private async detectAvailableModel(): Promise<string | null> {

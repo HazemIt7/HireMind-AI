@@ -1,11 +1,15 @@
 import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { QdrantService } from './qdrant.service';
+import { LocalLlmService } from '../cv/local-llm.service';
 
 @ApiTags('Offres d\'emploi & Matching Vectoriel')
 @Controller('jobs')
 export class JobsController {
-  constructor(private readonly qdrantService: QdrantService) {}
+  constructor(
+    private readonly qdrantService: QdrantService,
+    private readonly localLlmService: LocalLlmService
+  ) {}
 
   @Post()
   @ApiBearerAuth('JWT-auth')
@@ -16,18 +20,62 @@ export class JobsController {
       type: 'object',
       required: ['prompt'],
       properties: {
-        prompt: { type: 'string', example: 'Développeur Flutter Senior & NestJS, 5 ans d\'expérience, Paris' },
-        skillsRequired: { type: 'array', items: { type: 'string' }, example: ['Flutter', 'Dart', 'NestJS', 'Docker'] }
+        prompt: { type: 'string', example: 'Ingénieur Cybersécurité Wazuh/Ansible 2 ans expérience' },
       },
     },
   })
   async createJob(@Body() body: any) {
     const jobId = `job_${Date.now()}`;
-    const skills = body.skillsRequired || ['Flutter', 'Dart', 'NestJS', 'TypeScript'];
-    const title = body.title || 'Développeur Mobile Flutter & Backend Senior (H/F)';
-    const description = body.description || `Nous recherchons un développeur senior pour piloter nos projets Flutter/NestJS. Context: ${body.prompt || ''}`;
+    const promptText = (body.prompt || body.title || '').trim();
 
-    // Generate vector embedding & index in Qdrant
+    // 1. Attempt LLM generation via local Ollama
+    let generated = await this.localLlmService.generateJobOfferWithLocalLlm(promptText);
+
+    // 2. Dynamic NLP fallback if LLM is unreachable or formatting fails
+    if (!generated) {
+      const lower = promptText.toLowerCase();
+      let dynamicTitle = 'Ingénieur Spécialiste Technique (H/F)';
+      let dynamicDepartment = 'Technologie & Ingénierie';
+
+      if (lower.includes('cyber') || lower.includes('siem') || lower.includes('wazuh') || lower.includes('pentest') || lower.includes('security')) {
+        dynamicTitle = 'Ingénieur Cybersécurité & SOC (H/F)';
+        dynamicDepartment = 'Cybersécurité & Infra';
+      } else if (lower.includes('devops') || lower.includes('kubernetes') || lower.includes('terraform') || lower.includes('cloud') || lower.includes('aws')) {
+        dynamicTitle = 'Ingénieur Cloud DevOps & Kubernetes (H/F)';
+        dynamicDepartment = 'Ingénierie Cloud & DevOps';
+      } else if (lower.includes('fullstack') || lower.includes('backend') || lower.includes('frontend') || lower.includes('react') || lower.includes('nest')) {
+        dynamicTitle = 'Ingénieur Développeur Fullstack / Backend (H/F)';
+        dynamicDepartment = 'Engineering';
+      } else if (promptText.length > 5) {
+        dynamicTitle = promptText.split(',')[0].split('.')[0].trim();
+      }
+
+      // Extract skills from prompt
+      const knownSkills = ['Wazuh', 'Ansible', 'SIEM', 'Linux', 'Hardening', 'Kubernetes', 'Terraform', 'CI/CD', 'AWS', 'Docker', 'NestJS', 'React', 'TypeScript', 'Python', 'C++'];
+      const extractedSkills = knownSkills.filter(s => lower.includes(s.toLowerCase()));
+
+      // Extract salary if mentioned (e.g. 45k$, 55k$)
+      const salaryMatch = promptText.match(/\d+\s*(?:k|K)?\s*(?:€|\$|EUR|USD|DT)/i);
+      const dynamicSalary = salaryMatch ? salaryMatch[0] : '50k€ - 65k€';
+
+      generated = {
+        title: dynamicTitle,
+        department: dynamicDepartment,
+        location: 'Tunis / Hybride',
+        salaryRange: dynamicSalary,
+        description: `Offre générée sur mesure pour la demande : "${promptText}". Missions principales : conception, automatisation et supervision technique.`,
+        skillsRequired: extractedSkills.length > 0 ? extractedSkills : ['Cybersécurité', 'DevOps', 'Cloud', 'Linux'],
+        softSkills: ['Autonomie', 'Communication', 'Résolution de problèmes']
+      };
+    }
+
+    const skills = generated.skillsRequired || ['Cybersecurity', 'DevOps', 'TypeScript'];
+    const title = generated.title || 'Fiche de Poste Structurée par IA';
+    const description = generated.description || `Offre d'emploi générée par IA selon : ${promptText}`;
+    const salaryRange = generated.salaryRange || '50k€ - 60k€';
+    const department = generated.department || 'Ingénierie IA';
+
+    // Generate vector embedding & index in Qdrant Vector DB
     const vector = this.qdrantService.generateEmbedding(skills, description);
     await this.qdrantService.upsertVector(jobId, vector, {
       id: jobId,
@@ -39,14 +87,18 @@ export class JobsController {
     return {
       id: jobId,
       title,
+      department,
+      location: generated.location || 'Tunis / Hybride',
+      salaryRange,
+      prompt: promptText,
       description,
       requirements: {
         technical: skills,
-        softSkills: ['Autonomie', 'Mentorat', 'Rigueur'],
+        softSkills: generated.softSkills || ['Autonomie', 'Rigueur'],
       },
       qdrantVectorIndexed: true,
       vectorDimension: vector.length,
-      salaryRange: '55k€ - 65k€',
+      createdAt: new Date().toISOString().split('T')[0]
     };
   }
 
