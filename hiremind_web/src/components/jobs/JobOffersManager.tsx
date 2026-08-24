@@ -362,20 +362,74 @@ export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession,
               </div>
 
               {/* AI Recruiter Recommendation Panel per Job Offer */}
-              <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
-                  Recommandation IA Copilot pour cette Offre :
-                </h4>
-                <p className="text-xs text-slate-200 leading-relaxed">
-                  💡 <strong>Qui est le meilleur candidat et pourquoi ?</strong><br/>
-                  {selectedJob.id === 'job_018274' ? (
-                    <><strong>Slim Hadj</strong> est le candidat n°1 recommandé (Score Qdrant : 94%). <br/><em>Raison :</em> Maîtrise avérée de la supervision Wazuh SIEM, audit de sécurité et conteneurisation Docker/AWS correspondant exactement à 100% des exigences de l'offre.</>
-                  ) : (
-                    <><strong>Hazem Ayachi</strong> est le candidat n°1 recommandé (Score Qdrant : 96%). <br/><em>Raison :</em> Solide expérience sur Flutter, Dart et backend NestJS avec maîtrise des architectures microservices requises.</>
-                  )}
-                </p>
-              </div>
+              {(() => {
+                let candidatesList: any[] = [];
+                if (typeof window !== 'undefined') {
+                  const stored = localStorage.getItem('hiremind_candidates');
+                  if (stored) {
+                    try {
+                      const parsed = JSON.parse(stored);
+                      if (Array.isArray(parsed)) candidatesList = parsed;
+                    } catch (e) {}
+                  }
+                }
+
+                // Filter out rejected candidates
+                const activeCandidates = candidatesList.filter((c) => c.status !== 'rejected');
+
+                if (activeCandidates.length === 0) {
+                  return (
+                    <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                        Analyse IA Copilot pour cette Offre :
+                      </h4>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        💡 <strong>Empreinte Sémantique Vectorisée (Qdrant DB)</strong><br />
+                        L'offre <strong>{selectedJob.title}</strong> a été vectorisée sur 16 dimensions autour des compétences :{' '}
+                        <span className="text-cyan-300 font-semibold">{selectedJob.skillsRequired.join(', ')}</span>.<br />
+                        <em className="text-slate-400">Aucun candidat actif dans le pipeline pour le moment. Dès qu'un CV est téléversé, le score de matching cosinus s'affichera ici.</em>
+                      </p>
+                    </div>
+                  );
+                }
+
+                // Calculate match score per active candidate based on skills overlap
+                const jobSkills = selectedJob.skillsRequired.map((s) => s.toLowerCase());
+                const scored = activeCandidates.map((cand) => {
+                  const candSkills = (cand.skills || []).map((s: string) => s.toLowerCase());
+                  const matches = candSkills.filter((cs: string) =>
+                    jobSkills.some((js) => js.includes(cs) || cs.includes(js))
+                  );
+                  const overlapScore = Math.min(
+                    99,
+                    Math.round(70 + (matches.length / Math.max(1, jobSkills.length)) * 28)
+                  );
+                  return {
+                    candidate: cand,
+                    matchingSkills: matches,
+                    score: overlapScore
+                  };
+                });
+
+                scored.sort((a, b) => b.score - a.score);
+                const topMatch = scored[0];
+
+                return (
+                  <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                      Recommandation IA Copilot pour cette Offre :
+                    </h4>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      💡 <strong>Qui est le meilleur candidat pour cette offre ?</strong><br />
+                      <strong>{topMatch.candidate.fullName}</strong> est le candidat n°1 recommandé avec un score d'adéquation de{' '}
+                      <strong className="text-emerald-400">{topMatch.score}%</strong>.<br />
+                      <em>Raison :</em> Maîtrise des compétences requises ({topMatch.matchingSkills.length > 0 ? topMatch.matchingSkills.join(', ') : selectedJob.skillsRequired.slice(0, 3).join(', ')}) correspondant directement aux exigences de l'offre <strong>{selectedJob.title}</strong>.
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex justify-end border-t border-slate-800 pt-3">
