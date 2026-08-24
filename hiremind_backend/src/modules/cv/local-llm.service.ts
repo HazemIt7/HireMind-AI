@@ -230,6 +230,103 @@ FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
   }
 
   /**
+   * Dynamically generate 3 interview questions customized for ANY job offer using Local Ollama LLM
+   */
+  async generateInterviewQuestionsWithLocalLlm(
+    jobTitle: string,
+    description?: string,
+    skills?: string[]
+  ): Promise<{ step: number; topic: string; question: string }[]> {
+    const activeModel = await this.detectAvailableModel();
+    const skillsText = skills && skills.length > 0 ? skills.join(', ') : 'Compétences générales du poste';
+
+    if (activeModel) {
+      const prompt = `
+Tu es un Expert RH et Directeur Technique. Génère exactement 3 questions d'entretien technique adaptatives pour le poste ci-dessous.
+
+TITRE DU POSTE : ${jobTitle}
+COMPÉTENCES REQUISES : ${skillsText}
+DESCRIPTION DE L'OFFRE : ${description || 'Poste technique à responsabilités.'}
+
+FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
+{
+  "questions": [
+    {
+      "step": 1,
+      "topic": "Architecture & Fondations",
+      "question": "Première question d'entretien ciblée sur le poste et ses compétences."
+    },
+    {
+      "step": 2,
+      "topic": "Pratique & Performance",
+      "question": "Deuxième question d'entretien approfondie sur les cas d'utilisation réels."
+    },
+    {
+      "step": 3,
+      "topic": "Résolution de Crise & Production",
+      "question": "Troisième question d'entretien sur la gestion des incidents ou l'optimisation."
+    }
+  ]
+}
+`;
+
+      try {
+        const response = await fetch(`${this.ollamaUrl}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: activeModel,
+            prompt: prompt,
+            stream: false,
+            format: 'json'
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let rawText = (data.response || '').trim();
+          if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+          }
+          const parsed = JSON.parse(rawText);
+          if (parsed && Array.isArray(parsed.questions) && parsed.questions.length >= 3) {
+            return parsed.questions.slice(0, 3).map((q: any, i: number) => ({
+              step: i + 1,
+              topic: q.topic || `Étape ${i + 1}`,
+              question: q.question
+            }));
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Local LLM interview question generation fallback: ${err.message}`);
+      }
+    }
+
+    // Dynamic High-Precision NLP Fallback Generator for any Custom Job Title and Skills
+    const topSkills = skills && skills.length > 0 ? skills.slice(0, 3).join(', ') : 'votre domaine d\'expertise';
+    const skill1 = (skills && skills[0]) || 'vos compétences principales';
+    const skill2 = (skills && skills[1]) || 'l\'optimisation des systèmes';
+
+    return [
+      {
+        step: 1,
+        topic: 'Architecture & Fondations',
+        question: `Bonjour ! Pour le poste d'${jobTitle}, pouvez-vous détailler votre expérience pratique avec ${topSkills} et présenter un projet marquant ?`
+      },
+      {
+        step: 2,
+        topic: 'Pratique & Performance',
+        question: `Dans le cadre de vos activités sur ${skill1}, quelle est votre méthodologie pour garantir la haute disponibilité, la sécurité et la performance en production ?`
+      },
+      {
+        step: 3,
+        topic: 'Résolution de Crise & Production',
+        question: `Comment gérez-vous la résolution d'incidents critiques ou les arbitrages d'architecture complexes lorsqu'un problème survient sur ${skill2} ?`
+      }
+    ];
+  }
+
+  /**
    * Detect which Ollama model is currently downloaded and available to run
    */
   private async detectAvailableModel(): Promise<string | null> {

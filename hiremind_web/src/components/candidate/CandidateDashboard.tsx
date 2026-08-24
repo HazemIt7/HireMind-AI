@@ -260,7 +260,8 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
           jobId: job.id,
           candidateName: `${userSession.firstName} ${userSession.lastName}`,
           jobTitle: job.title,
-          skills: job.skillsRequired
+          skills: job.skillsRequired,
+          description: job.description
         })
       });
 

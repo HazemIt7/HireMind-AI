@@ -43,12 +43,13 @@ export class InterviewsController {
       },
     },
   })
-  startInterview(@Body() body: any) {
-    const session = this.adaptiveInterviewService.startSession(
+  async startInterview(@Body() body: any) {
+    const session = await this.adaptiveInterviewService.startSession(
       body.jobId || 'job_018273',
       body.candidateName,
       body.jobTitle,
       body.skills,
+      body.description,
     );
     return {
       sessionId: session.sessionId,
@@ -56,8 +57,8 @@ export class InterviewsController {
       currentStep: session.currentStep,
       maxSteps: session.maxSteps,
       difficultyLevel: session.difficultyLevel,
-      firstQuestion: session.history[0].question,
-      topic: session.history[0].topic,
+      firstQuestion: session.history[0]?.question || `Présentez votre expérience pour le poste d'${body.jobTitle || 'Ingénieur'}.`,
+      topic: session.history[0]?.topic || 'Architecture & Fondations',
     };
   }
 
