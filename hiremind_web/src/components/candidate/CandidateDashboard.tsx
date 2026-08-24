@@ -329,21 +329,37 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
 
   // Submit Candidate Application to Recruiter's ATS Pipeline
   const submitApplicationToATS = (job: JobOffer, score: number) => {
+    const candPhone = `+216 ${20 + (Math.abs(userSession.email.length * 7) % 10)} ${100 + (Math.abs(userSession.email.length * 13) % 899)} ${100 + (Math.abs(userSession.email.length * 19) % 899)}`;
     const newCand: Candidate = {
-      id: `cand-${Date.now()}`,
+      id: `cand_${userSession.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
       fullName: `${userSession.firstName} ${userSession.lastName}`,
       email: userSession.email,
-      phone: '+216 22 345 678',
+      phone: candPhone,
       roleApplied: job.title,
       matchScore: score,
       status: 'tech_interview',
-      skills: skillsList,
+      skills: skillsList.length > 0 ? skillsList : job.skillsRequired,
       radarScores,
       appliedDate: new Date().toISOString().split('T')[0],
-      experienceYears: 4,
+      experienceYears: 3,
       summary
     };
-    onApplySuccess(newCand);
+
+    if (onApplySuccess) {
+      onApplySuccess(newCand);
+    }
+
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hiremind_candidates');
+      let currentList: Candidate[] = [];
+      if (stored) {
+        try {
+          currentList = JSON.parse(stored);
+        } catch (e) {}
+      }
+      const updatedList = [newCand, ...currentList.filter((c) => c.email !== newCand.email)];
+      localStorage.setItem('hiremind_candidates', JSON.stringify(updatedList));
+    }
   };
 
   return (
