@@ -158,27 +158,27 @@ DIRECTIVES :
 Tu es un Expert RH et Directeur du Recrutement spécialisé dans les Métiers du Numérique.
 
 MISSION :
-Génère une fiche de poste professionnelle, structurée et complète en fonction de la demande du recruteur ci-dessous.
+Rédige une vraie fiche de poste professionnelle complète pour un candidat en fonction de la demande du recruteur ci-dessous.
 
 DEMANDE DU RECRUTEUR :
 "${promptText}"
 
 RÈGLES STRICTES DE GÉNÉRATION :
-- Génère un titre exact ("title") correspondant au poste demandé (ex: "Ingénieur en Cybersécurité", "Ingénieur Cloud DevOps", "Développeur Fullstack"). Ne génère JAMAIS un titre de Développeur Flutter sauf si le prompt le demande explicitement.
-- Extrais la fourchette de salaire ("salaryRange") mentionnée ou évalue une fourchette du marché (ex: "45k€ - 55k€" ou "45k$ - 55k$").
-- Extrais le département ("department") approprié (ex: "Cybersécurité & Infra", "Ingénierie Cloud & DevOps", "Développement Software").
-- Extrais les compétences techniques ("skillsRequired") mentionnées dans la demande (ex: ["Wazuh", "Ansible", "SIEM", "Linux", "Hardening"] ou ["Kubernetes", "Terraform", "CI/CD", "AWS"]).
-- Rédige une description professionnelle de 2-3 phrases ("description") décrivant le rôle et les missions.
+- ÉCRIS DIRECTEMENT la vraie description et les missions principales du poste.
+- Ne donne JAMAIS de consignes ou d'instructions dans la description (NE DIS JAMAIS "Rédigez votre propre...", "Cette fiche doit...", "Écrivez une description...").
+- Génère un titre exact ("title") correspondant au poste (ex: "Ingénieur en Cybersécurité", "Ingénieur Cloud DevOps").
+- Extrais le département ("department") et la fourchette de salaire ("salaryRange").
+- Extrais les compétences techniques ("skillsRequired") et soft skills ("softSkills").
 
 FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
 {
-  "title": "Titre exact de l'offre d'emploi",
-  "department": "Département métier",
-  "location": "Lieu de travail ou Remote",
-  "salaryRange": "Fourchette de salaire",
-  "description": "Description détaillée et missions principales du poste.",
-  "skillsRequired": ["Compétence 1", "Compétence 2", "Compétence 3", "Compétence 4"],
-  "softSkills": ["Soft skill 1", "Soft skill 2", "Soft skill 3"]
+  "title": "Ingénieur en Cybersécurité",
+  "department": "Cybersécurité & Infra",
+  "location": "Tunis / Hybride",
+  "salaryRange": "45k$ - 55k$",
+  "description": "Nous recherchons un Ingénieur en Cybersécurité pour intégrer notre équipe SOC. Vous serez chargé de la supervision SIEM via Wazuh, du hardening des systèmes Linux et de l'automatisation des déploiements sécurisés avec Ansible.",
+  "skillsRequired": ["Wazuh", "Ansible", "SIEM", "Hardening Linux"],
+  "softSkills": ["Gestion de crise", "Analyse de risque", "Rigueur"]
 }
 `;
 
@@ -202,6 +202,24 @@ FORMAT DE RÉPONSE EXIGÉ (JSON STRICT) :
           rawText = rawText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
         }
         const parsed = JSON.parse(rawText);
+
+        // Sanitize meta-instructions output from LLM
+        const descLower = (parsed.description || '').toLowerCase();
+        if (
+          !parsed.description ||
+          descLower.includes('rédigez') ||
+          descLower.includes('redigez') ||
+          descLower.includes('votre propre') ||
+          descLower.includes('cette fiche') ||
+          descLower.includes('décrire le rôle') ||
+          descLower.includes('decrire le role') ||
+          descLower.length < 25
+        ) {
+          const titleStr = parsed.title || 'Expert Technique';
+          const skillsStr = (parsed.skillsRequired || []).slice(0, 5).join(', ');
+          parsed.description = `Nous recherchons un(e) ${titleStr} passionné(e) pour rejoindre nos équipes. Vous participerez activement à l'architecture, au déploiement et à la sécurisation de nos environnements techniques (${skillsStr}).`;
+        }
+
         return parsed;
       }
     } catch (err: any) {
