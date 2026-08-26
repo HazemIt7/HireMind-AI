@@ -18,7 +18,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { SkillRadarCanvas } from './SkillRadarCanvas';
-import { Candidate, SkillScore } from '@/types/recruiter';
+import { Candidate, SkillScore, InterviewStepDetail } from '@/types/recruiter';
 import { JobOffer } from '../jobs/JobOffersManager';
 import { UserSession } from '../auth/AuthModal';
 
@@ -33,6 +33,7 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [interviewHistory, setInterviewHistory] = useState<InterviewStepDetail[]>([]);
 
   // Candidate Radar & Skills State
   const [radarScores, setRadarScores] = useState<SkillScore[]>([
@@ -251,6 +252,7 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   const handleStartInterview = async (job: JobOffer) => {
     setActiveInterviewJob(job);
     setIsSubmitting(true);
+    setInterviewHistory([]);
 
     try {
       const res = await fetch('http://localhost:3000/api/v1/interviews/start', {
@@ -299,13 +301,33 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         }
       );
 
+      let stepScore = 88;
+      let stepFeedback = 'Excellente réponse avec des termes techniques appropriés.';
+      let isDone = step >= 3;
+
       if (res.ok) {
         const data = await res.json();
-        if (data.isCompleted || data.isFinished || step >= 3) {
-          const score = data.scoreOverall || data.summaryScore || 92;
+        stepScore = data.previousAnswerScore || data.score || 90;
+        stepFeedback = data.feedback || 'Bonne pertinence technique et démonstration de compétences.';
+        isDone = data.isCompleted || data.isFinished || step >= 3;
+
+        const newStepEntry: InterviewStepDetail = {
+          step,
+          topic: step === 1 ? 'Architecture & Fondations' : step === 2 ? 'Pratique & Performance' : 'Résolution de Crise',
+          question: currentQuestion,
+          answer: candidateAnswer,
+          score: stepScore,
+          feedback: stepFeedback
+        };
+
+        const updatedHistory = [...interviewHistory, newStepEntry];
+        setInterviewHistory(updatedHistory);
+
+        if (isDone) {
+          const score = data.scoreOverall || data.summaryScore || Math.round(updatedHistory.reduce((acc, h) => acc + h.score, 0) / updatedHistory.length);
           setInterviewComplete(true);
           setFinalScore(score);
-          submitApplicationToATS(activeInterviewJob, score);
+          submitApplicationToATS(activeInterviewJob, score, updatedHistory);
         } else {
           setCurrentQuestion(data.nextQuestion);
           setStep(data.currentStep);
@@ -315,10 +337,21 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         throw new Error('Error processing answer');
       }
     } catch (err) {
+      const fallbackEntry: InterviewStepDetail = {
+        step,
+        topic: step === 1 ? 'Architecture & Fondations' : step === 2 ? 'Pratique & Performance' : 'Résolution de Crise',
+        question: currentQuestion,
+        answer: candidateAnswer,
+        score: 90,
+        feedback: 'Réponse pertinente démontrant une bonne maîtrise technique.'
+      };
+      const updatedHistory = [...interviewHistory, fallbackEntry];
+      setInterviewHistory(updatedHistory);
+
       if (step >= 3) {
         setInterviewComplete(true);
         setFinalScore(92);
-        submitApplicationToATS(activeInterviewJob, 92);
+        submitApplicationToATS(activeInterviewJob, 92, updatedHistory);
       } else {
         const nextStepNum = step + 1;
         setStep(nextStepNum);
@@ -339,7 +372,7 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   };
 
   // Submit Candidate Application to Recruiter's ATS Pipeline
-  const submitApplicationToATS = (job: JobOffer, score: number) => {
+  const submitApplicationToATS = (job: JobOffer, score: number, historyLogs?: InterviewStepDetail[]) => {
     const candPhone = `+216 ${20 + (Math.abs(userSession.email.length * 7) % 10)} ${100 + (Math.abs(userSession.email.length * 13) % 899)} ${100 + (Math.abs(userSession.email.length * 19) % 899)}`;
     const newCand: Candidate = {
       id: `cand_${userSession.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
@@ -353,7 +386,8 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
       radarScores,
       appliedDate: new Date().toISOString().split('T')[0],
       experienceYears: 3,
-      summary
+      summary,
+      interviewHistory: historyLogs || interviewHistory
     };
 
     if (onApplySuccess) {

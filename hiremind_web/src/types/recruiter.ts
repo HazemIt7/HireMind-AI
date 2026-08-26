@@ -12,6 +12,15 @@ export interface SkillScore {
   label: string;
 }
 
+export interface InterviewStepDetail {
+  step: number;
+  topic: string;
+  question: string;
+  answer: string;
+  score: number;
+  feedback: string;
+}
+
 export interface Candidate {
   id: string;
   fullName: string;
@@ -27,6 +36,7 @@ export interface Candidate {
   experienceYears: number;
   summary: string;
   pdfResumeUrl?: string;
+  interviewHistory?: InterviewStepDetail[];
 }
 
 export interface KanbanColumn {
