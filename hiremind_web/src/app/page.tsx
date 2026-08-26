@@ -386,6 +386,13 @@ export default function RecruiterDashboardPage() {
     }
   };
 
+  // Automatically calculate vector matching whenever user switches to ai_matching tab or changes selected job offer
+  React.useEffect(() => {
+    if (currentTab === 'ai_matching') {
+      handleRunMatching(selectedMatchingJobId);
+    }
+  }, [currentTab, selectedMatchingJobId, candidates.length]);
+
   const handleCandidateApplied = (newCand: Candidate) => {
     setCandidates((prev) => [newCand, ...prev.filter((c) => c.email !== newCand.email)]);
   };
