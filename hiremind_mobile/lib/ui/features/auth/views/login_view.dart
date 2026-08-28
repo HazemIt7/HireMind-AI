@@ -22,11 +22,17 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
+  void _fillDemoAccount(String email, String password) {
+    _emailController.text = email;
+    _passwordController.text = password;
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.read<AuthViewModel>();
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -36,11 +42,19 @@ class _LoginViewState extends State<LoginView> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo placeholder or Text
-                const Icon(
-                  Icons.psychology,
-                  size: 80,
-                  color: Colors.blueAccent,
+                // Logo Icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.psychology,
+                    size: 50,
+                    color: Colors.blueAccent,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -48,25 +62,29 @@ class _LoginViewState extends State<LoginView> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
-                  'Plateforme SaaS de Recrutement IA',
+                  'Espace Mobile Candidat • IA Recrutement',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.grey,
                   ),
                 ),
                 const SizedBox(height: 32),
+
+                // Email
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
                     labelText: 'Adresse Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -76,13 +94,15 @@ class _LoginViewState extends State<LoginView> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Password
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Mot de passe',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -91,7 +111,9 @@ class _LoginViewState extends State<LoginView> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Error Message
                 ListenableBuilder(
                   listenable: viewModel,
                   builder: (context, _) {
@@ -100,7 +122,7 @@ class _LoginViewState extends State<LoginView> {
                         padding: const EdgeInsets.only(bottom: 16.0),
                         child: Text(
                           viewModel.errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                          style: const TextStyle(color: Colors.red, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       );
@@ -108,6 +130,8 @@ class _LoginViewState extends State<LoginView> {
                     return const SizedBox.shrink();
                   },
                 ),
+
+                // Submit Login
                 ListenableBuilder(
                   listenable: viewModel,
                   builder: (context, _) {
@@ -116,9 +140,11 @@ class _LoginViewState extends State<LoginView> {
                     }
                     return ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                         backgroundColor: Colors.blueAccent,
                         foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
@@ -133,11 +159,34 @@ class _LoginViewState extends State<LoginView> {
                           }
                         }
                       },
-                      child: const Text('Se connecter'),
+                      child: const Text(
+                        'Se connecter',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     );
                   },
                 ),
+                const SizedBox(height: 12),
+
+                // Quick Demo Test Account Button
+                OutlinedButton.icon(
+                  onPressed: () {
+                    _fillDemoAccount('candidate@hiremind.ai', 'password123');
+                  },
+                  icon: const Icon(Icons.flash_on_rounded, size: 18, color: Colors.orange),
+                  label: const Text(
+                    'Remplir avec Compte Démo Candidat',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
                 const SizedBox(height: 16),
+
+                // Register Link
                 TextButton(
                   onPressed: () {
                     context.goNamed('register');

@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'ui/core/router.dart';
 import 'ui/features/auth/view_models/auth_view_model.dart';
 import 'ui/features/home/view_models/home_view_model.dart';
+import 'ui/features/interview/view_models/interview_view_model.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/cv_repository.dart';
+import 'data/repositories/job_repository.dart';
 import 'data/services/api_service.dart';
 
 void main() {
@@ -22,13 +24,15 @@ class _MyAppState extends State<MyApp> {
   late final ApiService apiService;
   late final AuthRepository authRepository;
   late final CvRepository cvRepository;
+  late final JobRepository jobRepository;
 
   @override
   void initState() {
     super.initState();
-    apiService = ApiService(baseUrl: 'http://10.0.2.2:3000/api/v1');
+    apiService = ApiService();
     authRepository = AuthRepository(apiService: apiService);
     cvRepository = CvRepository(apiService: apiService);
+    jobRepository = JobRepository(apiService: apiService);
   }
 
   @override
@@ -38,11 +42,18 @@ class _MyAppState extends State<MyApp> {
         Provider<ApiService>.value(value: apiService),
         Provider<AuthRepository>.value(value: authRepository),
         Provider<CvRepository>.value(value: cvRepository),
+        Provider<JobRepository>.value(value: jobRepository),
         ChangeNotifierProvider(
           create: (_) => AuthViewModel(authRepository: authRepository),
         ),
         ChangeNotifierProvider(
-          create: (_) => HomeViewModel(cvRepository: cvRepository),
+          create: (_) => HomeViewModel(
+            cvRepository: cvRepository,
+            jobRepository: jobRepository,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => InterviewViewModel(apiService: apiService),
         ),
       ],
       child: MaterialApp.router(
@@ -58,4 +69,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-

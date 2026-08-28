@@ -1,11 +1,25 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 
 class ApiService {
   final Dio _dio;
 
-  ApiService({required String baseUrl})
+  static String getDefaultBaseUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:3000/api/v1';
+    }
+    try {
+      if (Platform.isAndroid) {
+        return 'http://10.0.2.2:3000/api/v1';
+      }
+    } catch (_) {}
+    return 'http://localhost:3000/api/v1';
+  }
+
+  ApiService({String? baseUrl})
       : _dio = Dio(BaseOptions(
-          baseUrl: baseUrl,
+          baseUrl: baseUrl ?? getDefaultBaseUrl(),
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 60),
           headers: {
@@ -60,14 +74,36 @@ class ApiService {
     return await _dio.get('/candidates/me/passport');
   }
 
+  // Job Offers endpoints
+  Future<Response> getJobs() async {
+    return await _dio.get('/jobs');
+  }
+
+  Future<Response> getJobById(String id) async {
+    return await _dio.get('/jobs/$id');
+  }
+
   // Interview endpoints
-  Future<Response> startInterview(String jobId) async {
-    return await _dio.post('/interviews/start', data: {'jobId': jobId});
+  Future<Response> startInterview({
+    required String jobId,
+    String? candidateName,
+    String? jobTitle,
+    List<String>? skills,
+    String? description,
+  }) async {
+    return await _dio.post('/interviews/start', data: {
+      'jobId': jobId,
+      if (candidateName != null) 'candidateName': candidateName,
+      if (jobTitle != null) 'jobTitle': jobTitle,
+      if (skills != null) 'skills': skills,
+      if (description != null) 'description': description,
+    });
   }
 
   Future<Response> sendAnswer(String sessionId, String message) async {
     return await _dio.post('/interviews/$sessionId/message', data: {
       'message': message,
+      'answer': message,
     });
   }
 
@@ -76,5 +112,9 @@ class ApiService {
       'audioFile': await MultipartFile.fromFile(audioPath),
     });
     return await _dio.post('/interviews/$sessionId/audio', data: formData);
+  }
+
+  Future<Response> getInterviewSummary(String sessionId) async {
+    return await _dio.get('/interviews/$sessionId/summary');
   }
 }

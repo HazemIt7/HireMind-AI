@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../data/repositories/auth_repository.dart';
+import '../../../../domain/models/job_offer.dart';
+import '../../interview/view_models/interview_view_model.dart';
 import '../view_models/home_view_model.dart';
 
 class HomeView extends StatefulWidget {
@@ -17,9 +19,9 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
-    // Retrieve passport scores on view initialization if they exist
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeViewModel>().fetchPassport();
+      context.read<HomeViewModel>().fetchJobs();
     });
   }
 
@@ -34,6 +36,19 @@ class _HomeViewState extends State<HomeView> {
         await context.read<HomeViewModel>().uploadCV(result.files.single.path!);
       }
     }
+  }
+
+  void _startInterviewForJob(JobOffer job) {
+    final user = context.read<AuthRepository>().currentUser;
+    final interviewVm = context.read<InterviewViewModel>();
+    interviewVm.startInterview(
+      job: job,
+      candidateName: user != null ? '${user.firstName} ${user.lastName}' : 'Candidat',
+    );
+    context.pushNamed(
+      'interview',
+      pathParameters: {'sessionId': job.id},
+    );
   }
 
   @override
@@ -54,7 +69,16 @@ class _HomeViewState extends State<HomeView> {
         foregroundColor: Colors.black87,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Colors.blueAccent),
+            tooltip: 'Actualiser les données',
+            onPressed: () {
+              viewModel.fetchPassport();
+              viewModel.fetchJobs();
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.blueAccent),
+            tooltip: 'Se déconnecter',
             onPressed: () async {
               final router = GoRouter.of(context);
               await authRepository.logout();
@@ -70,7 +94,7 @@ class _HomeViewState extends State<HomeView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Bienvenue
+            // Bienvenue Card
             Row(
               children: [
                 Expanded(
@@ -78,9 +102,9 @@ class _HomeViewState extends State<HomeView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Bonjour, ${user?.firstName ?? "Candidat"} 👋',
+                        'Bonjour, ${user?.firstName.isNotEmpty == true ? user!.firstName : "Candidat"} 👋',
                         style: const TextStyle(
-                          fontSize: 26,
+                          fontSize: 24,
                           fontWeight: FontWeight.w800,
                           color: Colors.black87,
                           letterSpacing: -0.5,
@@ -89,14 +113,14 @@ class _HomeViewState extends State<HomeView> {
                       const SizedBox(height: 4),
                       Text(
                         user?.email ?? 'candidate@hiremind.ai',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
                 CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                  radius: 26,
+                  backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
                   child: Text(
                     (user?.firstName.isNotEmpty == true)
                         ? user!.firstName[0].toUpperCase()
@@ -110,6 +134,10 @@ class _HomeViewState extends State<HomeView> {
                 )
               ],
             ),
+            const SizedBox(height: 20),
+
+            // Section Suivi Candidat & Pipeline ATS
+            _buildPipelineStatusCard(viewModel),
             const SizedBox(height: 24),
 
             // Section Dépôt de CV
@@ -130,7 +158,7 @@ class _HomeViewState extends State<HomeView> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.blueAccent.withOpacity(0.1),
+                            color: Colors.blueAccent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -140,21 +168,21 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         const SizedBox(width: 12),
                         const Text(
-                          'Dépôt de Candidature',
+                          'Dépôt de CV & Analyse IA',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     const Text(
-                      'Importez votre CV (PDF, DOCX) pour mettre à jour votre Passeport de compétences IA.',
-                      style: TextStyle(color: Colors.grey, fontSize: 14, height: 1.3),
+                      'Déposez votre CV au format PDF pour analyser vos compétences et générer votre passeport radar IA.',
+                      style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.3),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     if (viewModel.isUploading)
                       Center(
                         child: Padding(
@@ -182,7 +210,7 @@ class _HomeViewState extends State<HomeView> {
                         onPressed: _pickAndUploadCV,
                         icon: const Icon(Icons.cloud_upload_outlined),
                         label: const Text(
-                          'Sélectionner un fichier',
+                          'Sélectionner mon CV (PDF)',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -200,9 +228,9 @@ class _HomeViewState extends State<HomeView> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.05),
+                            color: Colors.green.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.green.withOpacity(0.2)),
+                            border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
                           ),
                           child: Row(
                             children: [
@@ -210,7 +238,7 @@ class _HomeViewState extends State<HomeView> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Chargé : ${viewModel.cvPath!.split('/').last}',
+                                  'Fichier chargé : ${viewModel.cvPath!.split('/').last}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -235,80 +263,56 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // Section Passeport de compétences
             const Text(
               'Votre Skill Passport IA',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 19,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
             ),
             const SizedBox(height: 12),
             _buildRadarPassportSection(viewModel),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // Section Données Extraites du CV
             if (viewModel.parsedCvData != null) ...[
               const Text(
-                'Données extraites par l\'IA 🧠',
+                'Compétences Extraites par l\'IA 🧠',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 19,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 12),
               _buildParsedCvDataCard(viewModel.parsedCvData!),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
             ],
 
-            // Section Entretiens
-            const Text(
-              'Évaluation & Entretiens IA',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+            // Section Offres d'emploi & Entretiens IA Dynamiques
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Offres & Entretiens IA 🎯',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  '${viewModel.jobOffers.length} offre(s)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
-              ),
-              color: Colors.white,
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.code_rounded, color: Colors.purple),
-                ),
-                title: const Text(
-                  'Développeur Flutter / Dart',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: const Padding(
-                  padding: EdgeInsets.only(top: 4.0),
-                  child: Text('Entretien technique & vocal adaptatif'),
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-                onTap: () {
-                  context.pushNamed(
-                    'interview',
-                    pathParameters: {'sessionId': 'session_128937'},
-                  );
-                },
-              ),
-            ),
+            _buildJobsListSection(viewModel),
             const SizedBox(height: 40),
           ],
         ),
@@ -316,10 +320,62 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Widget _buildPipelineStatusCard(HomeViewModel viewModel) {
+    final hasPassport = viewModel.radarScores != null && viewModel.radarScores!.isNotEmpty;
+    final statusLabel = hasPassport ? 'Évaluation IA Validée' : 'En attente de CV';
+    final statusColor = hasPassport ? Colors.green : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              hasPassport ? Icons.verified_user_rounded : Icons.pending_actions_rounded,
+              color: statusColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Statut du Dossier ATS',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRadarPassportSection(HomeViewModel viewModel) {
     if (viewModel.isLoadingPassport) {
       return Container(
-        height: 280,
+        height: 240,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -342,10 +398,10 @@ class _HomeViewState extends State<HomeView> {
         ),
         child: Column(
           children: [
-            Icon(Icons.radar_rounded, size: 56, color: Colors.grey[400]),
+            Icon(Icons.radar_rounded, size: 48, color: Colors.grey[400]),
             const SizedBox(height: 12),
             const Text(
-              'Aucune donnée de compétences',
+              'Passeport non généré',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 6),
@@ -368,9 +424,8 @@ class _HomeViewState extends State<HomeView> {
       ),
       child: Column(
         children: [
-          // Radar chart
           SizedBox(
-            height: 230,
+            height: 220,
             child: RadarChart(
               RadarChartData(
                 dataSets: [
@@ -379,7 +434,7 @@ class _HomeViewState extends State<HomeView> {
                         .map((e) => RadarEntry(value: (e['score'] as num).toDouble()))
                         .toList(),
                     borderColor: Colors.blueAccent,
-                    fillColor: Colors.blueAccent.withOpacity(0.12),
+                    fillColor: Colors.blueAccent.withValues(alpha: 0.12),
                     borderWidth: 2.5,
                     entryRadius: 4,
                   ),
@@ -393,9 +448,7 @@ class _HomeViewState extends State<HomeView> {
                   if (index >= 0 && index < scores.length) {
                     final item = scores[index];
                     final label = (item['label'] ?? item['axis'] ?? 'Axe').toString();
-                    return RadarChartTitle(
-                      text: label,
-                    );
+                    return RadarChartTitle(text: label);
                   }
                   return const RadarChartTitle(text: '');
                 },
@@ -403,7 +456,6 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           const SizedBox(height: 16),
-          // Legend/List of scores
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -422,13 +474,162 @@ class _HomeViewState extends State<HomeView> {
                   label,
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
-                backgroundColor: Colors.blueAccent.withOpacity(0.05),
-                side: BorderSide(color: Colors.blueAccent.withOpacity(0.2)),
+                backgroundColor: Colors.blueAccent.withValues(alpha: 0.05),
+                side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.2)),
               );
             }).toList(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildJobsListSection(HomeViewModel viewModel) {
+    if (viewModel.isLoadingJobs) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (viewModel.jobOffers.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.work_off_outlined, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            const Text(
+              'Aucune offre d\'emploi disponible',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Les offres publiées par les recruteurs apparaîtront ici avec possibilité de passer l\'entretien IA.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: viewModel.jobOffers.map((job) {
+        return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.work_outline, color: Colors.blueAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            job.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${job.department} • ${job.location}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (job.description.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    job.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13, height: 1.3),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: job.skillsRequired.take(4).map((skill) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        skill,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      job.salaryRange,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _startInterviewForJob(job),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                      label: const Text(
+                        'Passer l\'Entretien IA',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -451,28 +652,25 @@ class _HomeViewState extends State<HomeView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Name & Contacts
             if (identity != null) ...[
               Text(
                 identity['fullName'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.email_outlined, size: 16, color: Colors.grey),
+                  const Icon(Icons.email_outlined, size: 15, color: Colors.grey),
                   const SizedBox(width: 6),
-                  Text(identity['email'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  Text(identity['email'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(width: 16),
-                  const Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
+                  const Icon(Icons.phone_outlined, size: 15, color: Colors.grey),
                   const SizedBox(width: 6),
-                  Text(identity['phone'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  Text(identity['phone'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
               const Divider(height: 24),
             ],
-
-            // Skills subsections
             _buildSkillsSubsection('Compétences Techniques', technical, Colors.blue),
             const SizedBox(height: 14),
             _buildSkillsSubsection('Méthodologies', methodological, Colors.orange),
@@ -491,7 +689,7 @@ class _HomeViewState extends State<HomeView> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -501,13 +699,13 @@ class _HomeViewState extends State<HomeView> {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
+                color: color.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: color.withOpacity(0.2)),
+                border: Border.all(color: color.withValues(alpha: 0.2)),
               ),
               child: Text(
                 e.toString(),
-                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
               ),
             );
           }).toList(),

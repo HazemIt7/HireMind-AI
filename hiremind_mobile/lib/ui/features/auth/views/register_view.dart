@@ -29,6 +29,7 @@ class _RegisterViewState extends State<RegisterView> {
     final viewModel = context.read<AuthViewModel>();
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -51,36 +52,36 @@ class _RegisterViewState extends State<RegisterView> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.1),
+                      color: Colors.blueAccent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.person_add_rounded,
-                      size: 60,
+                      size: 50,
                       color: Colors.blueAccent,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
-                  'Créer un Compte',
+                  'Créer un Compte Candidat',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
-                  'Rejoignez HireMind AI et boostez votre carrière',
+                  'Rejoignez HireMind AI et passez vos entretiens adaptatifs',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Form Fields
                 TextFormField(
@@ -92,14 +93,6 @@ class _RegisterViewState extends State<RegisterView> {
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -122,14 +115,6 @@ class _RegisterViewState extends State<RegisterView> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -150,14 +135,6 @@ class _RegisterViewState extends State<RegisterView> {
                     prefixIcon: const Icon(Icons.lock_clock_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
                     ),
                   ),
                   validator: (value) {
@@ -205,7 +182,7 @@ class _RegisterViewState extends State<RegisterView> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 2,
+                        elevation: 0,
                       ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
@@ -217,7 +194,6 @@ class _RegisterViewState extends State<RegisterView> {
                           );
                           if (!mounted) return;
                           if (success) {
-                            // Redirect to profile setup on successful registration
                             router.goNamed('profile-setup');
                           }
                         }
@@ -229,81 +205,11 @@ class _RegisterViewState extends State<RegisterView> {
                     );
                   },
                 ),
-                const SizedBox(height: 24),
-
-                // Divider
-                const Row(
-                  children: [
-                    Expanded(child: Divider()),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Ou s\'inscrire avec', style: TextStyle(color: Colors.grey)),
-                    ),
-                    Expanded(child: Divider()),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // OAuth Options (Google / LinkedIn)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildOAuthButton(
-                      icon: Icons.g_mobiledata_rounded,
-                      label: 'Google',
-                      color: Colors.redAccent,
-                      onTap: () => _simulateOAuth('Google'),
-                    ),
-                    _buildOAuthButton(
-                      icon: Icons.work_outline_rounded,
-                      label: 'LinkedIn',
-                      color: Colors.blue,
-                      onTap: () => _simulateOAuth('LinkedIn'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  Widget _buildOAuthButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(width: 8),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _simulateOAuth(String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connexion OAuth avec $provider simulée !'),
-        backgroundColor: Colors.blueAccent,
-      ),
-    );
-    // Simulate successful OAuth registration
-    context.goNamed('profile-setup');
   }
 }

@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import '../../../../data/repositories/cv_repository.dart';
+import '../../../../data/repositories/job_repository.dart';
+import '../../../../domain/models/job_offer.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final CvRepository _cvRepository;
+  final JobRepository _jobRepository;
 
-  HomeViewModel({required CvRepository cvRepository}) : _cvRepository = cvRepository;
+  HomeViewModel({
+    required CvRepository cvRepository,
+    required JobRepository jobRepository,
+  })  : _cvRepository = cvRepository,
+        _jobRepository = jobRepository;
 
   bool _isUploading = false;
   bool get isUploading => _isUploading;
 
   bool _isLoadingPassport = false;
   bool get isLoadingPassport => _isLoadingPassport;
+
+  bool _isLoadingJobs = false;
+  bool get isLoadingJobs => _isLoadingJobs;
 
   String? _uploadStatus;
   String? get uploadStatus => _uploadStatus;
@@ -24,6 +34,9 @@ class HomeViewModel extends ChangeNotifier {
   List<Map<String, dynamic>>? _radarScores;
   List<Map<String, dynamic>>? get radarScores => _radarScores;
 
+  List<JobOffer> _jobOffers = [];
+  List<JobOffer> get jobOffers => List.unmodifiable(_jobOffers);
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -33,6 +46,7 @@ class HomeViewModel extends ChangeNotifier {
     _radarScores = null;
     _uploadStatus = null;
     _errorMessage = null;
+    _jobOffers = [];
     notifyListeners();
   }
 
@@ -79,6 +93,21 @@ class HomeViewModel extends ChangeNotifier {
       _errorMessage = 'Impossible de charger le passeport de compétences.';
     } finally {
       _isLoadingPassport = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchJobs() async {
+    _isLoadingJobs = true;
+    notifyListeners();
+
+    try {
+      final jobs = await _jobRepository.fetchJobs();
+      _jobOffers = jobs;
+    } catch (_) {
+      _jobOffers = [];
+    } finally {
+      _isLoadingJobs = false;
       notifyListeners();
     }
   }

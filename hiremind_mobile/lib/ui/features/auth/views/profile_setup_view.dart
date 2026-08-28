@@ -28,6 +28,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -42,36 +43,36 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.blueAccent.withOpacity(0.1),
+                      color: Colors.blueAccent.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.settings_suggest_rounded,
-                      size: 60,
+                      size: 50,
                       color: Colors.blueAccent,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
                   'Configurer votre Profil',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
                   'Complétez vos informations pour personnaliser votre expérience',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // First Name Input
                 TextFormField(
@@ -116,7 +117,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
                   controller: _titleController,
                   decoration: InputDecoration(
                     labelText: 'Titre Professionnel ou Domaine',
-                    hintText: 'ex: Développeur Flutter Junior',
+                    hintText: 'ex: Développeur Flutter / Cyber Analyst',
                     prefixIcon: const Icon(Icons.work_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -129,7 +130,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Submit Button
                 if (_isLoading)
@@ -143,7 +144,7 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 2,
+                      elevation: 0,
                     ),
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
