@@ -80,6 +80,7 @@ export class AdaptiveInterviewService {
     };
 
     this.sessions.set(sessionId, session);
+    this.logger.log(`Started interview session '${sessionId}' for candidate '${session.candidateName}' (${session.candidateEmail || 'no-email'}) on job '${title}'`);
     return session;
   }
 
@@ -93,10 +94,10 @@ export class AdaptiveInterviewService {
     if (!session) {
       session = {
         sessionId,
-        jobId: 'job_018274',
-        jobTitle: 'Cloud DevOps Engineer (Kubernetes)',
-        skills: ['Kubernetes', 'Docker', 'Terraform', 'CI/CD'],
-        candidateName: 'Alexandre DUPONT',
+        jobId: 'job_default',
+        jobTitle: 'Poste Technique',
+        skills: ['Software', 'Architecture'],
+        candidateName: 'Candidat',
         currentStep: 1,
         maxSteps: 3,
         difficultyLevel: 1,
@@ -143,11 +144,20 @@ export class AdaptiveInterviewService {
       const finalScore = Math.round(session.totalScore / session.maxSteps);
       this.sessions.set(sessionId, session);
 
+      // Format updated history from actual session
+      const updatedHistory = session.history.map((h, i) => ({
+        step: i + 1,
+        topic: h.topic,
+        question: h.question,
+        answer: h.answer || answerText,
+        score: h.score || evaluatedScore,
+        feedback: h.feedback || evalResult.feedback,
+      }));
+
       // Automatically Synchronize and Advance Candidate in Centralized MongoDB ATS Pipeline
       try {
         const allCandidates = await this.candidatesService.findAll();
         
-        // Exact and fuzzy match candidate
         let cand = allCandidates.find((c: any) => {
           if (session?.candidateId && c.id === session.candidateId) return true;
           if (session?.candidateEmail && c.email && c.email.toLowerCase() === session.candidateEmail.toLowerCase()) return true;
@@ -159,20 +169,6 @@ export class AdaptiveInterviewService {
           return false;
         });
 
-        // If not found by exact criteria, fallback to the latest registered/parsed candidate
-        if (!cand && allCandidates.length > 0) {
-          cand = allCandidates[allCandidates.length - 1];
-        }
-
-        const updatedHistory = session.history.map((h, i) => ({
-          step: i + 1,
-          topic: h.topic,
-          question: h.question,
-          answer: h.answer || answerText,
-          score: h.score || evaluatedScore,
-          feedback: h.feedback || evalResult.feedback,
-        }));
-
         if (cand) {
           await this.candidatesService.upsert({
             ...cand,
@@ -181,21 +177,23 @@ export class AdaptiveInterviewService {
             interviewHistory: updatedHistory,
           });
 
-          this.logger.log(`Candidate '${cand.fullName}' (${cand.id}) advanced to 'tech_interview' with score ${finalScore}%`);
+          this.logger.log(`Candidate '${cand.fullName}' (${cand.id}) advanced to 'tech_interview' with real session history (${updatedHistory.length} Qs)`);
         } else {
-          // Create candidate if not exists
-          await this.candidatesService.upsert({
+          // Create new candidate entry in MongoDB if not existing yet
+          const newCand = {
             id: session.candidateId || `cand_${Date.now()}`,
             fullName: session.candidateName || 'Candidat Évalué',
             email: session.candidateEmail || 'candidat@hiremind.ai',
             roleApplied: session.jobTitle,
             matchScore: finalScore,
             status: 'tech_interview',
-            skills: session.skills,
+            skills: session.skills.length > 0 ? session.skills : ['Compétences Générales'],
             appliedDate: new Date().toISOString().split('T')[0],
             interviewHistory: updatedHistory,
-            summary: `Entretien IA validé pour le poste ${session.jobTitle}.`,
-          });
+            summary: `Entretien IA validé avec ${finalScore}% pour le poste de ${session.jobTitle}.`,
+          };
+          await this.candidatesService.upsert(newCand);
+          this.logger.log(`New Candidate '${newCand.fullName}' registered in MongoDB ATS with interview history.`);
         }
       } catch (err: any) {
         this.logger.warn(`Failed to auto-sync candidate to ATS: ${err.message}`);

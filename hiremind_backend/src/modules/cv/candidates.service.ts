@@ -11,7 +11,7 @@ const DEFAULT_CANDIDATE_SEEDS = [
     phone: '+216 20 123 456',
     roleApplied: 'Ingénieur Cybersécurité & DevOps',
     matchScore: 94,
-    status: 'parsed',
+    status: 'tech_interview',
     skills: ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'NestJS'],
     radarScores: [
       { axis: 'Software Dev', score: 88, label: 'Développement' },
@@ -53,11 +53,11 @@ const DEFAULT_CANDIDATE_SEEDS = [
   {
     id: 'cand_hazem_ayachi',
     fullName: 'Hazem Ayachi',
-    email: 'hazem.ayachi@gmail.com',
+    email: 'candidate@hiremind.ai',
     phone: '+216 25 188 318',
     roleApplied: 'Analyste SOC & Développeur Fullstack',
     matchScore: 96,
-    status: 'tech_interview',
+    status: 'parsed',
     skills: ['Pentesting', 'Wazuh SIEM', 'CEH', 'NestJS', 'Flutter', 'Dart'],
     radarScores: [
       { axis: 'Software Dev', score: 90, label: 'Développement' },
@@ -69,16 +69,7 @@ const DEFAULT_CANDIDATE_SEEDS = [
     appliedDate: '2026-08-22',
     experienceYears: 4,
     summary: 'Spécialiste en cybersécurité offensive et développement d’applications mobiles/backend sécurisées.',
-    interviewHistory: [
-      {
-        step: 1,
-        topic: 'Architecture & Fondations',
-        question: 'Expliquez l\'architecture d\'une application Flutter sécurisée avec backend NestJS.',
-        answer: 'Clean Architecture avec couche Domain indépendante, injection de dépendances et authentification JWT sécurisée.',
-        score: 96,
-        feedback: 'Maîtrise remarquable de l\'architecture logicielle.'
-      }
-    ]
+    interviewHistory: []
   },
   {
     id: 'cand_alexandre_dubois',
@@ -87,7 +78,7 @@ const DEFAULT_CANDIDATE_SEEDS = [
     phone: '+33 6 12 34 56 78',
     roleApplied: 'Cloud DevOps Engineer (Kubernetes)',
     matchScore: 89,
-    status: 'sourcing',
+    status: 'parsed',
     skills: ['Docker', 'Kubernetes', 'Terraform', 'AWS', 'CI/CD'],
     radarScores: [
       { axis: 'Software Dev', score: 75, label: 'Développement' },
@@ -147,12 +138,18 @@ export class CandidatesService implements OnModuleInit {
   async upsert(candData: any): Promise<any> {
     try {
       const existing = await this.candidateModel.findOne({
-        $or: [{ id: candData.id }, { email: candData.email }]
+        $or: [
+          { id: candData.id },
+          { email: candData.email },
+          { fullName: candData.fullName }
+        ]
       });
 
       if (existing) {
         await this.candidateModel.updateOne({ _id: existing._id }, { $set: candData });
-        const idx = this.memoryFallback.findIndex((c) => c.id === candData.id || c.email === candData.email);
+        const idx = this.memoryFallback.findIndex(
+          (c) => c.id === candData.id || c.email === candData.email || c.fullName === candData.fullName
+        );
         if (idx >= 0) this.memoryFallback[idx] = { ...this.memoryFallback[idx], ...candData };
         return { ...existing.toObject(), ...candData };
       } else {
@@ -161,7 +158,9 @@ export class CandidatesService implements OnModuleInit {
         return created.toObject ? created.toObject() : candData;
       }
     } catch (err) {
-      const idx = this.memoryFallback.findIndex((c) => c.id === candData.id || c.email === candData.email);
+      const idx = this.memoryFallback.findIndex(
+        (c) => c.id === candData.id || c.email === candData.email || c.fullName === candData.fullName
+      );
       if (idx >= 0) {
         this.memoryFallback[idx] = { ...this.memoryFallback[idx], ...candData };
       } else {
