@@ -125,75 +125,57 @@ export default function RecruiterDashboardPage() {
   // Live Sandbox Interactive State
   const [sandboxLang, setSandboxLang] = useState<'python' | 'javascript'>('python');
   const [sandboxCode, setSandboxCode] = useState(
-    'def solution(arr):\n    # Supprimer les doublons et trier\n    return sorted(list(set(arr)))\n\nprint(solution([3, 1, 4, 1, 5, 9, 2, 6, 5]))'
+    '# Saisissez ou collez votre code candidat pour l\'évaluation technique\ndef solution(data):\n    # Implémentez votre algorithme ici\n    return data\n\nprint(solution("Test HireMind Sandbox"))'
   );
-  // Available Job Offers for Vector Matching
-  const DEFAULT_JOBS: JobOffer[] = [
-    {
-      id: 'job_018273',
-      title: 'Ingénieur Cybersécurité & SIEM',
-      department: 'Sécurité & Infrastructure',
-      description: 'Surveillance SOC, audit d’infrastructures Linux, configuration de règles Wazuh SIEM et durcissement Ansible.',
-      skillsRequired: ['Wazuh SIEM', 'Pentesting', 'Hardening Linux', 'Ansible', 'Wireshark'],
-      softSkills: ['Rigueur', 'Analyse de crise', 'Communication'],
-      salaryRange: '52 000 € - 65 000 €',
-      location: 'Paris (Hybride)',
-      candidateCount: 4,
-      createdAt: '2026-08-20',
-      qdrantVectorIndexed: true
-    },
-    {
-      id: 'job_018274',
-      title: 'Cloud DevOps Engineer (Kubernetes)',
-      department: 'Cloud & Platform',
-      description: 'Conception et automatisation des clusters Kubernetes, pipelines CI/CD SecOps et infrastructure as code Terraform.',
-      skillsRequired: ['Kubernetes', 'Docker', 'Terraform', 'AWS', 'CI/CD'],
-      softSkills: ['Autonomie', 'Esprit d\'équipe', 'Proactivité'],
-      salaryRange: '55 000 € - 70 000 €',
-      location: 'Lyon (Hybride)',
-      candidateCount: 3,
-      createdAt: '2026-08-22',
-      qdrantVectorIndexed: true
-    },
-    {
-      id: 'job_018275',
-      title: 'Développeur Backend Senior NestJS',
-      department: 'Engineering Software',
-      description: 'Développement d’API REST microservices avec NestJS, PostgreSQL et intégration de modèles LLM locaux.',
-      skillsRequired: ['NestJS', 'TypeScript', 'PostgreSQL', 'Redis', 'Clean Architecture'],
-      softSkills: ['Pragmatisme', 'Code Review', 'Mentorat'],
-      salaryRange: '50 000 € - 62 000 €',
-      location: 'Remote 100%',
-      candidateCount: 5,
-      createdAt: '2026-08-23',
-      qdrantVectorIndexed: true
-    }
-  ];
 
-  const [availableJobs, setAvailableJobs] = useState<JobOffer[]>(DEFAULT_JOBS);
+  // Available Job Offers (Fetched dynamically from backend or localStorage)
+  const [availableJobs, setAvailableJobs] = useState<JobOffer[]>([]);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedJobs = localStorage.getItem('hiremind_job_offers');
-      if (storedJobs) {
-        try {
-          const parsed = JSON.parse(storedJobs);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAvailableJobs(parsed);
+    // Fetch from backend API
+    fetch('http://localhost:3000/api/v1/jobs')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAvailableJobs(data);
+          return;
+        }
+        // Fallback to localStorage
+        if (typeof window !== 'undefined') {
+          const storedJobs = localStorage.getItem('hiremind_job_offers');
+          if (storedJobs) {
+            try {
+              const parsed = JSON.parse(storedJobs);
+              if (Array.isArray(parsed)) {
+                setAvailableJobs(parsed);
+              }
+            } catch (e) {}
           }
-        } catch (e) {}
-      }
-    }
+        }
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          const storedJobs = localStorage.getItem('hiremind_job_offers');
+          if (storedJobs) {
+            try {
+              const parsed = JSON.parse(storedJobs);
+              if (Array.isArray(parsed)) {
+                setAvailableJobs(parsed);
+              }
+            } catch (e) {}
+          }
+        }
+      });
   }, []);
 
   const activeCandidatesList = candidates.filter((c) => c.status !== 'rejected');
   const kpis: RecruiterKPIs = {
-    activeJobs: 12,
+    activeJobs: availableJobs.length,
     totalCandidates: activeCandidatesList.length,
-    avgMatchScore: Math.round(
-      activeCandidatesList.reduce((acc, c) => acc + c.matchScore, 0) / (activeCandidatesList.length || 1)
-    ),
-    timeToHireDays: 8
+    avgMatchScore: activeCandidatesList.length > 0
+      ? Math.round(activeCandidatesList.reduce((acc, c) => acc + c.matchScore, 0) / activeCandidatesList.length)
+      : 0,
+    timeToHireDays: activeCandidatesList.length > 0 ? Math.max(3, 12 - activeCandidatesList.filter(c => c.status === 'hired').length * 2) : 0
   };
 
   const handleUpdateStatus = (candidateId: string, newStatus: CandidateStatus) => {
@@ -249,38 +231,15 @@ export default function RecruiterDashboardPage() {
 
         setCandidates((prev) => [newCand, ...prev]);
       } else {
-        throw new Error('Erreur backend');
+        throw new Error('Erreur de parsing backend');
       }
     } catch (error) {
-      setUploadMessage('Simulateur IA : extraction effectuée...');
-      setTimeout(() => {
-        const simulatedCand: Candidate = {
-          id: `cand-${Date.now()}`,
-          fullName: file.name.replace('.pdf', '').replace(/_/g, ' '),
-          email: 'nouveau.candidat@hiremind.ai',
-          phone: '+216 99 123 456',
-          roleApplied: 'DevOps & Cyber Engineer',
-          matchScore: 94,
-          status: 'parsed',
-          skills: ['Wazuh SIEM', 'NestJS', 'Docker', 'Security Audit'],
-          radarScores: [
-            { axis: 'Software Dev', score: 88, label: 'Développement' },
-            { axis: 'Cybersecurity', score: 92, label: 'Cybersécurité' },
-            { axis: 'Networks', score: 84, label: 'Réseaux' },
-            { axis: 'Systems', score: 80, label: 'Systèmes' },
-            { axis: 'Soft Skills', score: 90, label: 'Soft Skills' }
-          ],
-          appliedDate: new Date().toISOString().split('T')[0],
-          experienceYears: 4,
-          summary: `Extrait de ${file.name} : Compétences en sécurité, développement backend et conteneurisation.`
-        };
-        setCandidates((prev) => [simulatedCand, ...prev]);
-      }, 800);
+      setUploadMessage('Erreur : Impossible de joindre le service de parsing NestJS (/cv/upload).');
     } finally {
       setTimeout(() => {
         setIsUploading(false);
         setUploadMessage(null);
-      }, 2000);
+      }, 3000);
     }
   };
 
@@ -290,6 +249,7 @@ export default function RecruiterDashboardPage() {
   // Run Code Execution in Sandbox API
   const handleRunSandbox = async () => {
     setIsExecuting(true);
+    setSandboxResult(null);
     try {
       const res = await fetch('http://localhost:3000/api/v1/sandbox/execute', {
         method: 'POST',
@@ -300,16 +260,24 @@ export default function RecruiterDashboardPage() {
         const data = await res.json();
         setSandboxResult(data);
       } else {
-        throw new Error('Erreur exécution');
+        const errorData = await res.json().catch(() => ({}));
+        setSandboxResult({
+          status: 'error',
+          stdout: '',
+          stderr: errorData.message || 'Erreur lors de l\'exécution du code dans la sandbox.',
+          metrics: { executionTimeMs: 0, memoryUsedKb: 0 },
+          antiCheat: { plagiarismScore: 0, securityRiskLevel: 'SAFE', warnings: [] },
+          testResults: { total: 0, passed: 0, failed: 0 }
+        });
       }
-    } catch (e) {
+    } catch (e: any) {
       setSandboxResult({
-        status: 'success',
-        stdout: '[1, 2, 3, 4, 5, 6, 9]',
-        stderr: '',
-        metrics: { executionTimeMs: 45, memoryUsedKb: 1280 },
-        antiCheat: { plagiarismScore: 8.2, securityRiskLevel: 'SAFE', warnings: [] },
-        testResults: { total: 5, passed: 5, failed: 0 }
+        status: 'error',
+        stdout: '',
+        stderr: 'Erreur de connexion : Le microservice Sandbox NestJS (port 3000) est injoignable.',
+        metrics: { executionTimeMs: 0, memoryUsedKb: 0 },
+        antiCheat: { plagiarismScore: 0, securityRiskLevel: 'UNKNOWN', warnings: ['Service Sandbox hors ligne'] },
+        testResults: { total: 0, passed: 0, failed: 0 }
       });
     } finally {
       setIsExecuting(false);

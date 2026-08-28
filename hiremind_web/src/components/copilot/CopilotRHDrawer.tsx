@@ -39,18 +39,28 @@ export const CopilotRHDrawer: React.FC<CopilotRHDrawerProps> = ({
 }) => {
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Dynamic initial suggestions based on current pipeline
+  const initialSuggestions = candidates.length >= 2
+    ? [
+        `Compare ${candidates[0].fullName} et ${candidates[1].fullName}`,
+        'Qui est le meilleur profil selon Qdrant ?',
+        'Fais-moi un résumé du pipeline ATS'
+      ]
+    : [
+        'Fais-moi un résumé du pipeline ATS',
+        'Comment fonctionne le matching sémantique Qdrant ?',
+        'Quelles compétences clés rechercher ?'
+      ];
+
   const [messages, setMessages] = useState<CopilotMessage[]>([
     {
       id: 'msg-1',
       sender: 'assistant',
       text: '👋 **Bonjour ! Je suis votre IA Copilot RH HireMind.**\n\n' +
-        'Je peux comparer des candidats, analyser le pipeline ATS, recommander le meilleur profil ou suggérer des questions d\'entretien adaptatif.\n\n' +
+        'Je peux comparer vos candidats, analyser le pipeline ATS, recommander le meilleur profil ou suggérer des questions d\'entretien adaptatif.\n\n' +
         '💬 *Posez-moi n\'importe quelle question en langage naturel ou cliquez sur une suggestion ci-dessous.*',
-      suggestedActions: [
-        'Compare Slim Hadj et Hazem Ayachi',
-        'Qui est le meilleur candidat en Cybersécurité ?',
-        'Fais-moi un résumé du pipeline ATS'
-      ],
+      suggestedActions: initialSuggestions,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -97,25 +107,32 @@ export const CopilotRHDrawer: React.FC<CopilotRHDrawerProps> = ({
         throw new Error('Backend query failed');
       }
     } catch (err) {
-      // Local intelligent response fallback
+      // Dynamic local fallback based on actual candidates in pipeline
       setTimeout(() => {
-        let fallbackText = `🤖 **IA Copilot RH (Mode Intelligent)** :\n\nJ'ai analysé votre demande : *"${textToSend}"*.\n\n`;
+        let fallbackText = `🤖 **IA Copilot RH (Analyse Locale)** :\n\nJ'ai analysé votre demande : *"${textToSend}"*.\n\n`;
         let actions = ['Fais-moi un résumé du pipeline', 'Qui est le meilleur profil ?'];
 
         const qLower = textToSend.toLowerCase();
-        if (qLower.includes('compare') || qLower.includes('slim') || qLower.includes('hazem')) {
-          fallbackText += `📊 **Comparaison IA entre Slim Hadj et Hazem Ayachi** :\n\n` +
-            `• **Slim Hadj** (94% Match IA) : Expert en Cybersécurité (Wazuh SIEM, Pentesting) & Cloud DevOps (Docker, AWS, K8s). 4 ans d'expérience.\n` +
-            `• **Hazem Ayachi** (96% Match IA) : Analyste Cybersécurité & Développeur Fullstack (Flutter, NestJS, CEH). 4 ans d'expérience.\n\n` +
-            `💡 **Recommandation Copilot** : **Slim Hadj** est le plus qualifié pour la supervision d'infrastructures cloud sécurisées, tandis que **Hazem Ayachi** eccelle sur le développement mobile/backend sécurisé.`;
-          actions = ['Planifier Entretien avec Slim Hadj', 'Planifier Entretien avec Hazem Ayachi'];
-        } else if (qLower.includes('meilleur') || qLower.includes('top')) {
+        if (candidates.length === 0) {
+          fallbackText += `Actuellement, **aucun candidat** n'est enregistré dans votre pipeline ATS. Dès qu'un CV est analysé, vous pourrez poser des questions comparatives.`;
+        } else if (qLower.includes('compare') || qLower.includes('comparaison')) {
+          const targetA = candidates[0];
+          const targetB = candidates[1] || candidates[0];
+          fallbackText += `📊 **Comparaison entre ${targetA.fullName} et ${targetB.fullName}** :\n\n` +
+            `• **${targetA.fullName}** (${targetA.matchScore}% Match) : ${targetA.roleApplied}, ${targetA.experienceYears} ans exp. Compétences : ${targetA.skills.slice(0, 4).join(', ')}.\n` +
+            (candidates.length > 1
+              ? `• **${targetB.fullName}** (${targetB.matchScore}% Match) : ${targetB.roleApplied}, ${targetB.experienceYears} ans exp. Compétences : ${targetB.skills.slice(0, 4).join(', ')}.\n\n` +
+                `💡 **Recommandation Copilot** : **${targetA.matchScore >= targetB.matchScore ? targetA.fullName : targetB.fullName}** possède le meilleur score d'adéquation global.`
+              : `\n*(Un seul candidat disponible dans le pipeline)*`);
+          actions = [`Planifier Entretien avec ${targetA.fullName}`];
+        } else if (qLower.includes('meilleur') || qLower.includes('top') || qLower.includes('recommande')) {
+          const topCandidate = [...candidates].sort((a, b) => b.matchScore - a.matchScore)[0];
           fallbackText += `🏆 **Meilleur candidat détecté par Qdrant** :\n\n` +
-            `**Hazem Ayachi** (96% Match Score) suivi de près par **Slim Hadj** (94% Match Score).\n` +
-            `Les deux candidats possèdent les embeddings vectoriels les plus proches des exigences techniques requises.`;
-          actions = ['Lancer Test Code Sandbox', 'Voir Passeport de Compétences'];
+            `**${topCandidate.fullName}** (${topCandidate.matchScore}% Match Score, ${topCandidate.roleApplied}).\n` +
+            `Compétences : ${topCandidate.skills.join(', ')}.`;
+          actions = ['Lancer Test Code Sandbox', `Voir Fiche de ${topCandidate.fullName}`];
         } else {
-          fallbackText += `Actuellement, **${candidates.length} candidats** sont dans votre pipeline ATS. Slim Hadj et Hazem Ayachi sont prêts pour passer l'entretien adaptatif.`;
+          fallbackText += `Actuellement, **${candidates.length} candidat(s)** sont dans votre pipeline ATS. Taux d'adéquation moyen : **${Math.round(candidates.reduce((a, c) => a + c.matchScore, 0) / (candidates.length || 1))}%**.`;
         }
 
         const assistantMsg: CopilotMessage = {
@@ -144,7 +161,7 @@ export const CopilotRHDrawer: React.FC<CopilotRHDrawerProps> = ({
             <h3 className="text-base font-bold text-white flex items-center gap-1.5">
               IA Copilot RH
               <span className="px-2 py-0.5 text-[10px] font-mono rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                GPT-4o / Qdrant
+                Ollama LLM / Qdrant
               </span>
             </h3>
             <p className="text-[11px] text-slate-400">Assistant intelligent de recrutement RH</p>

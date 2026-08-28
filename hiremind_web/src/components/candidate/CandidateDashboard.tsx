@@ -35,54 +35,46 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [interviewHistory, setInterviewHistory] = useState<InterviewStepDetail[]>([]);
 
-  // Candidate Radar & Skills State
+  // Candidate Radar & Skills State (Clean default until CV is uploaded or fetched)
   const [radarScores, setRadarScores] = useState<SkillScore[]>([
-    { axis: 'Software Dev', score: 50, label: 'Développement' },
-    { axis: 'Cybersecurity', score: 50, label: 'Cybersécurité' },
-    { axis: 'Networks', score: 50, label: 'Réseaux' },
-    { axis: 'Systems', score: 50, label: 'Systèmes' },
-    { axis: 'Soft Skills', score: 50, label: 'Soft Skills' }
+    { axis: 'Software Dev', score: 0, label: 'Développement' },
+    { axis: 'Cybersecurity', score: 0, label: 'Cybersécurité' },
+    { axis: 'Networks', score: 0, label: 'Réseaux' },
+    { axis: 'Systems', score: 0, label: 'Systèmes' },
+    { axis: 'Soft Skills', score: 0, label: 'Soft Skills' }
   ]);
   const [skillsList, setSkillsList] = useState<string[]>([]);
   const [summary, setSummary] = useState(
     'Bienvenue ! Téléversez votre CV au format PDF pour analyser vos compétences et générer votre Passeport de Compétences IA.'
   );
 
-  // Initialize or fetch passport per candidate session
+  // Initialize or fetch passport per candidate session from backend or storage
   React.useEffect(() => {
-    const isSlim = userSession.email.includes('slim');
-    const isHazem = userSession.email.includes('candidate');
-
-    if (isSlim) {
-      setRadarScores([
-        { axis: 'Software Dev', score: 88, label: 'Développement' },
-        { axis: 'Cybersecurity', score: 95, label: 'Cybersécurité' },
-        { axis: 'Networks', score: 85, label: 'Réseaux' },
-        { axis: 'Systems', score: 90, label: 'Systèmes' },
-        { axis: 'Soft Skills', score: 89, label: 'Soft Skills' }
-      ]);
-      setSkillsList(['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'NestJS', 'Python']);
-      setSummary('Ingénieur spécialisé en Cybersécurité (Wazuh SIEM, Pentesting) et Infrastructures Cloud DevOps (Docker, K8s, AWS).');
-    } else if (isHazem) {
-      setRadarScores([
-        { axis: 'Software Dev', score: 90, label: 'Développement' },
-        { axis: 'Cybersecurity', score: 95, label: 'Cybersécurité' },
-        { axis: 'Networks', score: 85, label: 'Réseaux' },
-        { axis: 'Systems', score: 80, label: 'Systèmes' },
-        { axis: 'Soft Skills', score: 88, label: 'Soft Skills' }
-      ]);
-      setSkillsList(['Pentesting', 'Wazuh SIEM', 'CEH', 'NestJS', 'Flutter', 'Dart']);
-      setSummary('Spécialiste en cybersécurité offensive et développement d’applications mobiles/backend sécurisées.');
-    } else {
-      setRadarScores([
-        { axis: 'Software Dev', score: 50, label: 'Développement' },
-        { axis: 'Cybersecurity', score: 50, label: 'Cybersécurité' },
-        { axis: 'Networks', score: 50, label: 'Réseaux' },
-        { axis: 'Systems', score: 50, label: 'Systèmes' },
-        { axis: 'Soft Skills', score: 50, label: 'Soft Skills' }
-      ]);
-      setSkillsList([]);
-      setSummary('Bienvenue ! Téléversez votre CV au format PDF pour analyser vos compétences et générer votre Passeport de Compétences IA.');
+    // Check if candidate already has an existing profile in localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hiremind_candidates');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const existingCand = parsed.find((c: Candidate) => c.email === userSession.email);
+            if (existingCand) {
+              if (existingCand.radarScores && existingCand.radarScores.length > 0) {
+                setRadarScores(existingCand.radarScores);
+              }
+              if (existingCand.skills && existingCand.skills.length > 0) {
+                setSkillsList(existingCand.skills);
+              }
+              if (existingCand.summary) {
+                setSummary(existingCand.summary);
+              }
+              if (existingCand.interviewHistory) {
+                setInterviewHistory(existingCand.interviewHistory);
+              }
+            }
+          }
+        } catch (e) {}
+      }
     }
 
     if (userSession.accessToken) {
@@ -186,11 +178,11 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
         const newSummary = data.parsedData?.textSummary || summary || `CV parsé avec succès : ${file.name}`;
         const domainRole = data.parsedData?.primaryDomain
           ? `${data.parsedData.primaryDomain} Specialist`
-          : 'Spécialiste Technique IA';
+          : 'Candidat IA';
         const candName = data.fullName || (data.parsedData?.fullName ? data.parsedData.fullName : `${userSession.firstName} ${userSession.lastName}`);
-        const candPhone = data.phone || data.parsedData?.phone || `+216 ${20 + (Math.abs(userSession.email.length * 7) % 10)} ${100 + (Math.abs(userSession.email.length * 13) % 899)} ${100 + (Math.abs(userSession.email.length * 19) % 899)}`;
-        const candMatchScore = data.matchScore || data.parsedData?.matchScore || (82 + (Math.abs(userSession.email.length * 17) % 15));
-        const candExpYears = data.parsedData?.experienceYears || (data.parsedData?.seniorityLevel === 'Senior' ? 5 : 2 + (Math.abs(userSession.email.length * 3) % 4));
+        const candPhone = data.phone || data.parsedData?.phone || 'Non renseigné';
+        const candMatchScore = data.matchScore || data.parsedData?.matchScore || 85;
+        const candExpYears = data.parsedData?.experienceYears || (data.parsedData?.seniorityLevel === 'Senior' ? 5 : 2);
 
         if (data.parsedData?.skills?.technical) {
           setSkillsList(data.parsedData.skills.technical);
@@ -373,19 +365,35 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
 
   // Submit Candidate Application to Recruiter's ATS Pipeline
   const submitApplicationToATS = (job: JobOffer, score: number, historyLogs?: InterviewStepDetail[]) => {
-    const candPhone = `+216 ${20 + (Math.abs(userSession.email.length * 7) % 10)} ${100 + (Math.abs(userSession.email.length * 13) % 899)} ${100 + (Math.abs(userSession.email.length * 19) % 899)}`;
+    let existingPhone = 'Non renseigné';
+    let existingExp = 2;
+
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('hiremind_candidates');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const found = parsed.find((c: Candidate) => c.email === userSession.email);
+          if (found) {
+            existingPhone = found.phone || existingPhone;
+            existingExp = found.experienceYears || existingExp;
+          }
+        } catch (e) {}
+      }
+    }
+
     const newCand: Candidate = {
       id: `cand_${userSession.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
       fullName: `${userSession.firstName} ${userSession.lastName}`,
       email: userSession.email,
-      phone: candPhone,
+      phone: existingPhone,
       roleApplied: job.title,
       matchScore: score,
       status: 'tech_interview',
       skills: skillsList.length > 0 ? skillsList : job.skillsRequired,
       radarScores,
       appliedDate: new Date().toISOString().split('T')[0],
-      experienceYears: 3,
+      experienceYears: existingExp,
       summary,
       interviewHistory: historyLogs || interviewHistory
     };

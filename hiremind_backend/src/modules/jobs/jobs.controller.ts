@@ -115,12 +115,8 @@ export class JobsController {
   @ApiOperation({ summary: 'Calculer le score de matching sémantique vectoriel avec Qdrant' })
   @ApiResponse({ status: 200, description: 'Scores de similarité cosinus avec les candidats.' })
   async matchCandidate(@Param('id') id: string, @Body() body: any) {
-    const jobSkills = body?.jobSkills || ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'NestJS'];
-    const candidatesList = body?.candidates || [
-      { id: 'cand_slim', fullName: 'Slim Hadj', email: 'slim.hadj@gmail.com', roleApplied: 'Ingénieur Cybersécurité & DevOps', skills: ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'NestJS'], experienceYears: 4, radarScores: [{ axis: 'Soft Skills', score: 89 }] },
-      { id: 'cand_hazem', fullName: 'Hazem Ayachi', email: 'hazem.ayachi@gmail.com', roleApplied: 'Analyste SOC & Développeur Fullstack', skills: ['Pentesting', 'Wazuh SIEM', 'CEH', 'NestJS', 'Flutter', 'Dart'], experienceYears: 4, radarScores: [{ axis: 'Soft Skills', score: 88 }] },
-      { id: 'cand_alexandre', fullName: 'Alexandre Dubois', email: 'alexandre.dubois@gmail.com', roleApplied: 'Ingénieur DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'AWS', 'Terraform', 'CI/CD'], experienceYears: 3, radarScores: [{ axis: 'Soft Skills', score: 85 }] }
-    ];
+    const jobSkills = body?.jobSkills || ['NestJS', 'TypeScript', 'Docker', 'Kubernetes'];
+    const candidatesList = body?.candidates || [];
 
     const searchVector = this.qdrantService.generateEmbedding(jobSkills);
     const jobSkillsLower = jobSkills.map((s: string) => s.toLowerCase());

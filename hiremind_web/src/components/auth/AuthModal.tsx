@@ -57,13 +57,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           const session: UserSession = {
             id: data.user?.id || 'usr-1',
             email: data.user?.email || email,
-            role: data.user?.role || (email.includes('admin') ? 'admin' : email.includes('recruiter') ? 'recruiter' : 'candidate'),
-            firstName: data.user?.firstName || firstName || (email.includes('slim') ? 'Slim' : email.includes('admin') ? 'Super' : 'Candidat'),
-            lastName: data.user?.lastName || lastName || (email.includes('slim') ? 'Hadj' : email.includes('admin') ? 'Admin' : 'IA'),
+            role: data.user?.role || role,
+            firstName: data.user?.firstName || firstName || (email.split('@')[0] || 'Utilisateur'),
+            lastName: data.user?.lastName || lastName || '',
             accessToken: data.accessToken
           };
 
-          // Auto sync candidate account to recruiter ATS pipeline in localStorage
+          // Auto sync candidate account to recruiter ATS pipeline if candidate
           if (session.role === 'candidate' && typeof window !== 'undefined') {
             const stored = localStorage.getItem('hiremind_candidates');
             let currentList: any[] = [];
@@ -75,23 +75,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             if (!currentList.some((c: any) => c.email === session.email)) {
               const newCand = {
                 id: `cand_${Date.now()}_${session.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-                fullName: `${session.firstName} ${session.lastName}`,
+                fullName: `${session.firstName} ${session.lastName}`.trim() || session.email,
                 email: session.email,
-                phone: '+216 20 123 456',
-                roleApplied: 'Candidat IA',
-                matchScore: 88,
-                status: 'parsed',
-                skills: ['Cybersécurité', 'DevOps', 'Software Dev'],
+                phone: 'Non renseigné',
+                roleApplied: 'Candidat (En attente CV)',
+                matchScore: 0,
+                status: 'sourcing',
+                skills: [],
                 radarScores: [
-                  { axis: 'Software Dev', score: 75, label: 'Développement' },
-                  { axis: 'Cybersecurity', score: 80, label: 'Cybersécurité' },
-                  { axis: 'Networks', score: 70, label: 'Réseaux' },
-                  { axis: 'Systems', score: 75, label: 'Systèmes' },
-                  { axis: 'Soft Skills', score: 85, label: 'Soft Skills' }
+                  { axis: 'Software Dev', score: 0, label: 'Développement' },
+                  { axis: 'Cybersecurity', score: 0, label: 'Cybersécurité' },
+                  { axis: 'Networks', score: 0, label: 'Réseaux' },
+                  { axis: 'Systems', score: 0, label: 'Systèmes' },
+                  { axis: 'Soft Skills', score: 0, label: 'Soft Skills' }
                 ],
                 appliedDate: new Date().toISOString().split('T')[0],
-                experienceYears: 2,
-                summary: `Candidat inscrit sur la plateforme : ${session.firstName} ${session.lastName} (${session.email}).`
+                experienceYears: 0,
+                summary: `Compte candidat créé : ${session.firstName} ${session.lastName}. En attente du téléversement de CV.`
               };
               localStorage.setItem('hiremind_candidates', JSON.stringify([newCand, ...currentList]));
             }
@@ -104,30 +104,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         throw new Error(data.message || 'Erreur d\'authentification');
       }
     } catch (err: any) {
-      // Local fallback simulator for smooth dev testing
+      // Local fallback simulator for offline development
       if (!isRegister) {
-        let fallbackRole: 'candidate' | 'recruiter' | 'admin' = 'candidate';
+        let fallbackRole = role;
         let fName = firstName;
         let lName = lastName;
 
-        if (!fName || !lName) {
+        if (!fName) {
           const parts = email.split('@')[0].split('.');
-          fName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Candidat';
-          lName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'IA';
-        }
-
-        if (email.includes('admin') || role === 'admin') {
-          fallbackRole = 'admin';
-          fName = 'Super';
-          lName = 'Admin';
-        } else if (email.includes('recruiter') || role === 'recruiter') {
-          fallbackRole = 'recruiter';
-          fName = 'Hazem';
-          lName = 'Ayachi';
-        } else if (email.includes('slim')) {
-          fallbackRole = 'candidate';
-          fName = 'Slim';
-          lName = 'Hadj';
+          fName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Utilisateur';
+          lName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : '';
         }
 
         const session: UserSession = {
@@ -138,7 +124,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           lastName: lName
         };
 
-        // Auto sync candidate account to recruiter ATS pipeline in localStorage
         if (session.role === 'candidate' && typeof window !== 'undefined') {
           const stored = localStorage.getItem('hiremind_candidates');
           let currentList: any[] = [];
@@ -148,29 +133,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             } catch (e) {}
           }
           if (!currentList.some((c: any) => c.email === session.email)) {
-            const candPhone = `+216 ${20 + (Math.abs(session.email.length * 7) % 10)} ${100 + (Math.abs(session.email.length * 13) % 899)} ${100 + (Math.abs(session.email.length * 19) % 899)}`;
-            const candScore = 82 + (Math.abs(session.email.length * 17) % 15);
-            const candExp = 2 + (Math.abs(session.email.length * 3) % 4);
-
             const newCand = {
               id: `cand_${Date.now()}_${session.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-              fullName: `${session.firstName} ${session.lastName}`,
+              fullName: `${session.firstName} ${session.lastName}`.trim() || session.email,
               email: session.email,
-              phone: candPhone,
-              roleApplied: 'Candidat IA',
-              matchScore: candScore,
-              status: 'parsed',
-              skills: ['Cybersécurité', 'DevOps', 'Software Dev'],
+              phone: 'Non renseigné',
+              roleApplied: 'Candidat (En attente CV)',
+              matchScore: 0,
+              status: 'sourcing',
+              skills: [],
               radarScores: [
-                { axis: 'Software Dev', score: 75 + (candScore % 10), label: 'Développement' },
-                { axis: 'Cybersecurity', score: 80 + (candScore % 12), label: 'Cybersécurité' },
-                { axis: 'Networks', score: 70 + (candScore % 15), label: 'Réseaux' },
-                { axis: 'Systems', score: 75 + (candScore % 14), label: 'Systèmes' },
-                { axis: 'Soft Skills', score: 85, label: 'Soft Skills' }
+                { axis: 'Software Dev', score: 0, label: 'Développement' },
+                { axis: 'Cybersecurity', score: 0, label: 'Cybersécurité' },
+                { axis: 'Networks', score: 0, label: 'Réseaux' },
+                { axis: 'Systems', score: 0, label: 'Systèmes' },
+                { axis: 'Soft Skills', score: 0, label: 'Soft Skills' }
               ],
               appliedDate: new Date().toISOString().split('T')[0],
-              experienceYears: candExp,
-              summary: `Candidat inscrit sur la plateforme : ${session.firstName} ${session.lastName} (${session.email}).`
+              experienceYears: 0,
+              summary: `Compte candidat créé : ${session.firstName} ${session.lastName}. En attente du téléversement de CV.`
             };
             localStorage.setItem('hiremind_candidates', JSON.stringify([newCand, ...currentList]));
           }

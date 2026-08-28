@@ -25,76 +25,21 @@ export class CopilotService {
 
   async processQuery(dto: CopilotQueryDto): Promise<CopilotResponse> {
     const q = dto.query.toLowerCase().trim();
-    const candidates = dto.contextCandidates || [
-      {
-        id: 'cand-slim-hadj',
-        fullName: 'Slim Hadj',
-        roleApplied: 'Ingénieur Cybersécurité & Cloud DevOps',
-        matchScore: 94,
-        status: 'parsed',
-        skills: ['Wazuh SIEM', 'Pentesting', 'Docker', 'Kubernetes', 'AWS', 'NestJS'],
-        radarScores: [
-          { axis: 'Software Dev', score: 88 },
-          { axis: 'Cybersecurity', score: 95 },
-          { axis: 'Networks', score: 85 },
-          { axis: 'Systems', score: 90 },
-          { axis: 'Soft Skills', score: 89 }
-        ],
-        experienceYears: 4,
-        summary: 'Ingénieur spécialisé en Cybersécurité (Wazuh SIEM, Pentesting) et Infrastructures Cloud DevOps.'
-      },
-      {
-        id: 'cand-1',
-        fullName: 'Hazem Ayachi',
-        roleApplied: 'Cybersecurity Analyst & Dev',
-        matchScore: 96,
-        status: 'parsed',
-        skills: ['Pentesting', 'Wazuh SIEM', 'CEH', 'NestJS', 'Flutter'],
-        radarScores: [
-          { axis: 'Software Dev', score: 90 },
-          { axis: 'Cybersecurity', score: 95 },
-          { axis: 'Networks', score: 85 },
-          { axis: 'Systems', score: 80 },
-          { axis: 'Soft Skills', score: 88 }
-        ],
-        experienceYears: 4,
-        summary: 'Spécialiste en cybersécurité offensive et développement d’applications mobiles/backend sécurisées.'
-      },
-      {
-        id: 'cand-2',
-        fullName: 'Amine Ben Salem',
-        roleApplied: 'Fullstack Engineer NestJS/React',
-        matchScore: 92,
-        status: 'tech_interview',
-        skills: ['TypeScript', 'NestJS', 'React', 'PostgreSQL', 'Docker'],
-        radarScores: [
-          { axis: 'Software Dev', score: 95 },
-          { axis: 'Cybersecurity', score: 65 },
-          { axis: 'Networks', score: 75 },
-          { axis: 'Systems', score: 82 },
-          { axis: 'Soft Skills', score: 90 }
-        ],
-        experienceYears: 5,
-        summary: 'Développeur passionné par les architectures microservices et la haute disponibilité.'
-      },
-      {
-        id: 'cand-3',
-        fullName: 'Sarra Mansouri',
-        roleApplied: 'DevOps & Network Security',
-        matchScore: 89,
-        status: 'hr_interview',
-        skills: ['CCNA', 'Cisco', 'Kubernetes', 'CI/CD', 'TCP/IP'],
-        radarScores: [
-          { axis: 'Software Dev', score: 70 },
-          { axis: 'Cybersecurity', score: 88 },
-          { axis: 'Networks', score: 94 },
-          { axis: 'Systems', score: 90 },
-          { axis: 'Soft Skills', score: 85 }
-        ],
-        experienceYears: 3,
-        summary: 'Experte en infrastructures réseau sécurisées et automatisation de déploiement cloud.'
-      }
-    ];
+    const candidates = dto.contextCandidates || [];
+
+    if (candidates.length === 0) {
+      const llmAnswer = await this.localLlmService.generateCopilotResponse(dto.query, []);
+      return {
+        type: 'general',
+        answer: llmAnswer || `🤖 **IA Copilot RH** :\n\n` +
+          `Actuellement, **aucun candidat** n'est enregistré dans votre pipeline ATS.\n` +
+          `Dès que des CVs sont analysés ou que des candidats postulent, vous pourrez demander des comparaisons, synthèses et recommandations personnalisées.`,
+        suggestedActions: [
+          'Comment créer une offre d\'emploi ?',
+          'Comment fonctionne l\'analyse de CV ?'
+        ]
+      };
+    }
 
     // 1. Comparison Queries (e.g. "compare slim hadj et hazem", "compare aziz et mohamed")
     if (q.includes('compare') || q.includes('comparaison') || (q.includes('et') && q.includes('différence'))) {
@@ -104,7 +49,7 @@ export class CopilotService {
       );
 
       const targetA = matchedCandidates[0] || candidates[0];
-      const targetB = matchedCandidates[1] || candidates[1];
+      const targetB = matchedCandidates[1] || candidates[candidates.length > 1 ? 1 : 0];
 
       return {
         type: 'comparison',

@@ -38,6 +38,20 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
     ? candidate.interviewHistory
     : [];
 
+  const topSkillAxis = candidate.radarScores && candidate.radarScores.length > 0
+    ? [...candidate.radarScores].sort((a, b) => b.score - a.score)[0]
+    : null;
+
+  const dynamicStrengths = topSkillAxis && topSkillAxis.score > 0
+    ? `Excellente maîtrise démontrée en ${topSkillAxis.label} (${topSkillAxis.score}%) avec ${candidate.skills.slice(0, 3).join(', ')}.`
+    : (candidate.skills.length > 0 ? `Compétences clés identifiées : ${candidate.skills.slice(0, 4).join(', ')}.` : 'En attente d\'analyse détaillée du CV.');
+
+  const dynamicRecommendation = candidate.matchScore >= 80
+    ? `Profil à fort potentiel (${candidate.matchScore}% Match IA), recommandé pour l'entretien technique adaptatif.`
+    : candidate.matchScore > 0
+    ? `Profil en cours d'évaluation (${candidate.matchScore}% Match IA), à approfondir.`
+    : 'Candidat inscrit. Inviter à déposer son CV pour générer son analyse IA.';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl text-slate-100 flex flex-col">
@@ -146,14 +160,18 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                 <Award className="w-4 h-4 text-cyan-400" /> Competences Clés
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {candidate.skills.map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 text-xs rounded-md bg-slate-800 border border-slate-700 text-cyan-300 font-medium"
-                  >
-                    {skill}
-                  </span>
-                ))}
+                {candidate.skills.length > 0 ? (
+                  candidate.skills.map((skill, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 text-xs rounded-md bg-slate-800 border border-slate-700 text-cyan-300 font-medium"
+                    >
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500 italic">Aucune compétence extraite pour le moment.</span>
+                )}
               </div>
             </div>
           </div>
@@ -188,7 +206,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                       <CheckCircle2 className="w-3.5 h-3.5" /> Points Forts
                     </h4>
                     <p className="text-xs text-slate-300 mt-1">
-                      Adéquation forte avec les exigences techniques et solides compétences pratiques.
+                      {dynamicStrengths}
                     </p>
                   </div>
                   <div className="p-3 bg-indigo-950/30 border border-indigo-500/20 rounded-lg">
@@ -196,7 +214,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                       <ChevronRight className="w-3.5 h-3.5" /> Recommandation IA
                     </h4>
                     <p className="text-xs text-slate-300 mt-1">
-                      Passer à l'étape d'Entretien Adaptatif Technique (Code Sandbox).
+                      {dynamicRecommendation}
                     </p>
                   </div>
                 </div>

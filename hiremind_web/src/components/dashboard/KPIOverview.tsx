@@ -13,7 +13,7 @@ export const KPIOverview: React.FC<KPIOverviewProps> = ({ kpis }) => {
     {
       title: 'Offres Actives',
       value: kpis.activeJobs,
-      subtitle: '+2 créées cette semaine',
+      subtitle: `${kpis.activeJobs} fiche${kpis.activeJobs > 1 ? 's' : ''} disponible${kpis.activeJobs > 1 ? 's' : ''}`,
       icon: Briefcase,
       color: 'from-blue-500/20 to-indigo-500/10',
       borderColor: 'border-blue-500/30',
@@ -22,7 +22,7 @@ export const KPIOverview: React.FC<KPIOverviewProps> = ({ kpis }) => {
     {
       title: 'Candidats dans le Pipe',
       value: kpis.totalCandidates,
-      subtitle: 'Dans 5 étapes ATS',
+      subtitle: `${kpis.totalCandidates} profil${kpis.totalCandidates > 1 ? 's' : ''} dans le pipeline ATS`,
       icon: Users,
       color: 'from-purple-500/20 to-pink-500/10',
       borderColor: 'border-purple-500/30',
@@ -31,7 +31,7 @@ export const KPIOverview: React.FC<KPIOverviewProps> = ({ kpis }) => {
     {
       title: 'Match IA Moyen',
       value: `${kpis.avgMatchScore}%`,
-      subtitle: 'Précision vectorielle Qdrant',
+      subtitle: 'Similarité vectorielle Qdrant',
       icon: Sparkles,
       color: 'from-cyan-500/20 to-teal-500/10',
       borderColor: 'border-cyan-500/30',
@@ -40,7 +40,7 @@ export const KPIOverview: React.FC<KPIOverviewProps> = ({ kpis }) => {
     {
       title: 'Temps Moyen d\'Embauche',
       value: `${kpis.timeToHireDays} jours`,
-      subtitle: '-65% grâce aux filtres IA',
+      subtitle: 'Estimation basée sur l\'activité ATS',
       icon: Clock,
       color: 'from-emerald-500/20 to-teal-500/10',
       borderColor: 'border-emerald-500/30',
