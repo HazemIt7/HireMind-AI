@@ -277,10 +277,22 @@ export class CvController {
       };
     }
 
-    const cand = await this.candidatesService.findOne(userId);
+    let cand = await this.candidatesService.findOne(userId);
+    if (!cand) {
+      const user = await this.userService.findOneById(userId);
+      if (user) {
+        cand = await this.candidatesService.findOne(user.email);
+        if (!cand && user.firstName) {
+          const allCands = await this.candidatesService.findAll();
+          const fName = user.firstName.toLowerCase();
+          cand = allCands.find(c => c.fullName && c.fullName.toLowerCase().includes(fName));
+        }
+      }
+    }
+
     if (cand) {
       return {
-        candidateId: userId,
+        candidateId: cand.id || userId,
         radarScores: cand.radarScores || [],
         parsedData: {
           fullName: cand.fullName,

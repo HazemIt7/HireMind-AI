@@ -249,10 +249,15 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
     try {
       const res = await fetch('http://localhost:3000/api/v1/interviews/start', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userSession.accessToken ? { Authorization: `Bearer ${userSession.accessToken}` } : {})
+        },
         body: JSON.stringify({
           jobId: job.id,
-          candidateName: `${userSession.firstName} ${userSession.lastName}`,
+          candidateId: userSession.id,
+          candidateEmail: userSession.email,
+          candidateName: `${userSession.firstName} ${userSession.lastName}`.trim() || userSession.email.split('@')[0],
           jobTitle: job.title,
           skills: job.skillsRequired,
           description: job.description

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nes
 import { QdrantService } from './qdrant.service';
 import { JobsService } from './jobs.service';
 import { LocalLlmService } from '../cv/local-llm.service';
+import { CandidatesService } from '../cv/candidates.service';
 
 @ApiTags('Offres d\'emploi & Matching Vectoriel')
 @Controller('jobs')
@@ -11,7 +12,9 @@ export class JobsController {
     private readonly jobsService: JobsService,
     private readonly qdrantService: QdrantService,
     @Inject(forwardRef(() => LocalLlmService))
-    private readonly localLlmService: LocalLlmService
+    private readonly localLlmService: LocalLlmService,
+    @Inject(forwardRef(() => CandidatesService))
+    private readonly candidatesService: CandidatesService
   ) {}
 
   @Post()
@@ -53,11 +56,9 @@ export class JobsController {
         dynamicTitle = promptText.split(',')[0].split('.')[0].trim();
       }
 
-      // Extract skills from prompt
       const knownSkills = ['Wazuh', 'Ansible', 'SIEM', 'Linux', 'Hardening', 'Kubernetes', 'Terraform', 'CI/CD', 'AWS', 'Docker', 'NestJS', 'React', 'TypeScript', 'Python', 'C++'];
       const extractedSkills = knownSkills.filter(s => lower.includes(s.toLowerCase()));
 
-      // Extract salary if mentioned (e.g. 45k$, 55k$)
       const salaryMatch = promptText.match(/\d+\s*(?:k|K)?\s*(?:€|\$|EUR|USD|DT)/i);
       const dynamicSalary = salaryMatch ? salaryMatch[0] : '50k€ - 65k€';
 
@@ -124,8 +125,24 @@ export class JobsController {
   @ApiOperation({ summary: 'Calculer le score de matching sémantique vectoriel avec Qdrant' })
   @ApiResponse({ status: 200, description: 'Scores de similarité cosinus avec les candidats.' })
   async matchCandidate(@Param('id') id: string, @Body() body: any) {
-    const jobSkills = body?.jobSkills || ['NestJS', 'TypeScript', 'Docker', 'Kubernetes'];
-    const candidatesList = body?.candidates || [];
+    let jobSkills = body?.jobSkills;
+    if (!jobSkills || jobSkills.length === 0) {
+      const job = await this.jobsService.findOne(id);
+      if (job && job.skillsRequired) {
+        jobSkills = job.skillsRequired;
+      } else {
+        jobSkills = ['NestJS', 'TypeScript', 'Docker', 'Kubernetes'];
+      }
+    }
+
+    let candidatesList = body?.candidates || [];
+    if (candidatesList.length === 0) {
+      try {
+        candidatesList = await this.candidatesService.findAll();
+      } catch (err) {
+        candidatesList = [];
+      }
+    }
 
     const searchVector = this.qdrantService.generateEmbedding(jobSkills);
     const jobSkillsLower = jobSkills.map((s: string) => s.toLowerCase());
@@ -167,7 +184,7 @@ export class JobsController {
 
     return {
       jobId: id,
-      jobTitle: body.jobTitle || 'Fiche de Poste Sélectionnée',
+      jobTitle: body?.jobTitle || 'Fiche de Poste Sélectionnée',
       algorithm: 'Distance Cosinus (Qdrant Vector DB 16-D Embeddings)',
       candidatesCount: candidatesList.length,
       rankings: candidateRankings,

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { QdrantService } from '../jobs/qdrant.service';
 import { LocalLlmService } from '../cv/local-llm.service';
+import { CandidatesService } from '../cv/candidates.service';
 
 export interface CopilotQueryDto {
   query: string;
@@ -20,12 +21,22 @@ export class CopilotService {
 
   constructor(
     private readonly qdrantService: QdrantService,
-    private readonly localLlmService: LocalLlmService
+    private readonly localLlmService: LocalLlmService,
+    @Inject(forwardRef(() => CandidatesService))
+    private readonly candidatesService: CandidatesService,
   ) {}
 
   async processQuery(dto: CopilotQueryDto): Promise<CopilotResponse> {
     const q = dto.query.toLowerCase().trim();
-    const candidates = dto.contextCandidates || [];
+    let candidates = dto.contextCandidates || [];
+
+    if (candidates.length === 0) {
+      try {
+        candidates = await this.candidatesService.findAll();
+      } catch (err) {
+        candidates = [];
+      }
+    }
 
     if (candidates.length === 0) {
       const llmAnswer = await this.localLlmService.generateCopilotResponse(dto.query, []);
@@ -61,7 +72,7 @@ export class CopilotService {
           `• **${targetB.fullName}** (${targetB.roleApplied}) :\n` +
           `  - Match Score IA : **${targetB.matchScore}%** | Expérience : **${targetB.experienceYears} ans**\n` +
           `  - Points Forts : ${targetB.skills.slice(0, 4).join(', ')}\n\n` +
-          `💡 **Recommandation Copilot RH** : Pour un rôle axé Cybersécurité/DevOps, **${targetA.fullName}** a un léger avantage sur la partie SIEM & Pentesting. Pour du pure Développement Fullstack, **${targetB.fullName}** est idéal.`,
+          `💡 **Recommandation Copilot RH** : Pour un rôle axé Cybersécurité/DevOps, **${targetA.fullName}** a un avantage sur la partie SIEM & Pentesting. Pour du Développement Fullstack, **${targetB.fullName}** est adapté.`,
         suggestedActions: [
           `Planifier Entretien Technique pour ${targetA.fullName}`,
           `Comparer avec d'autres candidats`,
