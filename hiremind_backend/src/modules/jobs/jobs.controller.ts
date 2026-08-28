@@ -1,12 +1,14 @@
 import { Controller, Post, Get, Body, Param, Inject, forwardRef } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { QdrantService } from './qdrant.service';
+import { JobsService } from './jobs.service';
 import { LocalLlmService } from '../cv/local-llm.service';
 
 @ApiTags('Offres d\'emploi & Matching Vectoriel')
 @Controller('jobs')
 export class JobsController {
   constructor(
+    private readonly jobsService: JobsService,
     private readonly qdrantService: QdrantService,
     @Inject(forwardRef(() => LocalLlmService))
     private readonly localLlmService: LocalLlmService
@@ -85,7 +87,7 @@ export class JobsController {
       type: 'job'
     });
 
-    return {
+    const newJob = {
       id: jobId,
       title,
       department,
@@ -93,21 +95,28 @@ export class JobsController {
       salaryRange,
       prompt: promptText,
       description,
-      requirements: {
-        technical: skills,
-        softSkills: generated.softSkills || ['Autonomie', 'Rigueur'],
-      },
+      skillsRequired: skills,
+      softSkills: generated.softSkills || ['Autonomie', 'Rigueur'],
+      candidateCount: 0,
       qdrantVectorIndexed: true,
-      vectorDimension: vector.length,
       createdAt: new Date().toISOString().split('T')[0]
     };
+
+    return await this.jobsService.create(newJob);
   }
 
   @Get()
   @ApiOperation({ summary: 'Lister les offres d\'emploi disponibles' })
   @ApiResponse({ status: 200, description: 'Liste des offres d\'emploi.' })
-  findAll() {
-    return [];
+  async findAll() {
+    return await this.jobsService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtenir les détails d\'une offre d\'emploi par son ID' })
+  @ApiResponse({ status: 200, description: 'Détails de l\'offre d\'emploi.' })
+  async findOne(@Param('id') id: string) {
+    return await this.jobsService.findOne(id);
   }
 
   @Post(':id/match')

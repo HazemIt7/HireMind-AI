@@ -1,16 +1,18 @@
-import { Controller, Post, Get, Headers, UnauthorizedException, UseInterceptors, UploadedFile, Inject, forwardRef } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Headers, UnauthorizedException, UseInterceptors, UploadedFile, Inject, forwardRef } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from '../auth/user.service';
 import { QdrantService } from '../jobs/qdrant.service';
 import { LocalLlmService } from './local-llm.service';
+import { CandidatesService } from './candidates.service';
 const pdf = require('pdf-parse');
 
-@ApiTags('CV & Parsing')
+@ApiTags('CV, Parsing & Candidats')
 @Controller()
 export class CvController {
   constructor(
     private readonly userService: UserService,
+    private readonly candidatesService: CandidatesService,
     @Inject(forwardRef(() => QdrantService))
     private readonly qdrantService: QdrantService,
     private readonly localLlmService: LocalLlmService,
@@ -21,16 +23,44 @@ export class CvController {
 
   private getUserIdFromHeader(authHeader: string): string {
     if (!authHeader) {
-      throw new UnauthorizedException('Non authentifié.');
+      return 'user_default';
     }
     try {
       const token = authHeader.replace('Bearer ', '');
       const payloadString = Buffer.from(token, 'base64').toString('ascii');
       const payload = JSON.parse(payloadString);
-      return payload.id;
+      return payload.id || 'user_default';
     } catch (e) {
-      throw new UnauthorizedException('Session ou token invalide.');
+      return 'user_default';
     }
+  }
+
+  @Get('candidates')
+  @ApiOperation({ summary: 'Lister tous les candidats du pipeline ATS' })
+  @ApiResponse({ status: 200, description: 'Liste des candidats centralisée pour Web & Mobile.' })
+  async getCandidates() {
+    return await this.candidatesService.findAll();
+  }
+
+  @Post('candidates')
+  @ApiOperation({ summary: 'Enregistrer ou mettre à jour un candidat' })
+  @ApiResponse({ status: 201, description: 'Candidat enregistré avec succès.' })
+  async createCandidate(@Body() body: any) {
+    const candId = body.id || `cand_${Date.now()}`;
+    const candData = {
+      ...body,
+      id: candId,
+      appliedDate: body.appliedDate || new Date().toISOString().split('T')[0]
+    };
+    return await this.candidatesService.upsert(candData);
+  }
+
+  @Patch('candidates/:id/status')
+  @ApiOperation({ summary: 'Mettre à jour le statut ATS d\'un candidat' })
+  @ApiResponse({ status: 200, description: 'Statut mis à jour.' })
+  async updateCandidateStatus(@Param('id') id: string, @Body() body: any) {
+    const status = body.status || 'parsed';
+    return await this.candidatesService.updateStatus(id, status);
   }
 
   @Post('cv/upload')
@@ -76,60 +106,35 @@ export class CvController {
         text = file.buffer.toString('utf-8');
       }
     } catch (err) {
-      // Fallback to text decoding
       text = file.buffer.toString('utf-8');
     }
 
     // 2. Parse details dynamically
-    // Email regex
     const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const email = emailMatch ? emailMatch[0] : '';
 
-    // Phone regex supporting spaces and longer lengths (e.g. international format)
     const phoneMatch = text.match(/\+?[0-9\s.-]{10,20}/);
-    let phone = phoneMatch ? phoneMatch[0].trim() : '';
+    let phone = phoneMatch ? phoneMatch[0].trim() : 'Non renseigné';
 
-    // Generate unique realistic phone if missing in text
-    if (!phone || phone.length < 8) {
-      let hash = 0;
-      for (let i = 0; i < userId.length; i++) hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-      const absHash = Math.abs(hash);
-      const prefix = 20 + (absHash % 10);
-      const part1 = 100 + (absHash % 899);
-      const part2 = 100 + ((absHash >> 3) % 899);
-      phone = `+216 ${prefix} ${part1} ${part2}`;
-    }
-
-    // Dynamic Experience Years Extraction from PDF text
     let experienceYears = 2;
     const expMatch = text.match(/(\d+)\s*(?:ans?|years?|expérience|exp)/i);
     if (expMatch && parseInt(expMatch[1]) < 30 && parseInt(expMatch[1]) > 0) {
       experienceYears = parseInt(expMatch[1]);
-    } else {
-      let hash = 0;
-      for (let i = 0; i < userId.length; i++) hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-      experienceYears = 2 + (Math.abs(hash) % 5); // 2, 3, 4, 5, or 6 years
     }
 
-    // Retrieve real user details from PostgreSQL for fallback Name
     const user = await this.userService.findOneById(userId);
     let fullName = user ? `${user.firstName} ${user.lastName}`.trim() : '';
     if (!fullName) {
-      // Try to guess from first non-empty line of text
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      fullName = lines.length > 0 ? lines[0] : 'Jean Dupont';
+      fullName = lines.length > 0 ? lines[0] : file.originalname.replace('.pdf', '');
     }
 
-    // Scan for technical skills (Expanded to SOC, EDR, SIEM, Blue Team, Networking, Cloud)
     const techCatalog = [
-      // Software & Web Dev
       'Flutter', 'Dart', 'Firebase', 'Git', 'React', 'Angular', 'Vue', 'Node', 'Express', 'NestJS', 'TypeScript', 'JavaScript', 'Python', 'Django', 'Flask', 'FastAPI', 'Java', 'Spring', 'Go', 'Golang', 'Rust', 'C++', 'C#', 'SQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Android', 'iOS', 'Kotlin', 'Swift',
-      // Cybersecurity, SOC & Blue Team Operations
       'Analyste SOC', 'SOC Analyst', 'SOC', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint',
       'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'Proxy', 'Syslog', 'Windows Event Logs',
       'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing',
       'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Ethical Hacker', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité', 'Gestion des vulnérabilités', 'Cryptographie', 'PKI',
-      // Networks & Systems
       'Réseaux', 'Networks', 'CCNA', 'TCP/IP', 'Cisco', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Linux', 'Kali Linux', 'Ubuntu', 'Debian', 'Windows Server', 'Active Directory', 'VMware', 'VirtualBox', 'Virtualization'
     ];
     const technical = techCatalog.filter(skill => {
@@ -140,7 +145,6 @@ export class CvController {
       return new RegExp(pattern, 'i').test(text);
     });
 
-    // Scan for methodological skills
     const methodCatalog = [
       'Agile', 'Scrum', 'Kanban', 'TDD', 'BDD', 'Clean Architecture', 'DDD', 'CI/CD', 'DevOps', 'Microservices', 'REST', 'GraphQL',
       'Politique de Sécurité', 'PSSI', 'EBIOS', 'Threat Modeling', 'Routage', 'Commutation', 'Virtualisation', 'Analyse de Risque', 'Analyse de Logs', 'Triage d\'Alertes'
@@ -153,7 +157,6 @@ export class CvController {
       return new RegExp(pattern, 'i').test(text);
     });
 
-    // Scan for soft skills
     const softCatalog = [
       'Communication', 'Leadership', 'Esprit d\'équipe', 'Teamwork', 'Autonomie', 'Rigueur', 'Adaptabilité', 'Gestion du temps', 'Créativité', 'Résolution de problèmes',
       'Rigueur et Méthode', 'Veille Technologique', 'Curiosité'
@@ -166,10 +169,8 @@ export class CvController {
       return new RegExp(pattern, 'i').test(text);
     });
 
-    // Try parsing with Local Open-Source LLM (Ollama)
     const llmResult = await this.localLlmService.parseCvWithLocalLlm(text);
 
-    // Categorized Keyword Scopes for Accurate Axis Scoring
     const devKeywords = ['Node', 'NestJS', 'Express', 'TypeScript', 'JavaScript', 'React', 'Angular', 'Vue', 'Flutter', 'Dart', 'Django', 'FastAPI', 'Spring', 'Go', 'Java', 'C++', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'GraphQL', 'REST', 'Microservices'];
     const cyberKeywords = ['SOC', 'Analyste SOC', 'SOC Analyst', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint', 'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing', 'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité'];
     const networkKeywords = ['CCNA', 'Cisco', 'Cisco CyberOps', 'TCP/IP', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Wireshark', 'Zeek', 'tcpdump', 'Réseaux', 'Networks'];
@@ -180,7 +181,6 @@ export class CvController {
     const networkCount = technical.filter(k => networkKeywords.includes(k)).length + methodological.filter(k => networkKeywords.includes(k)).length;
     const systemCount = technical.filter(k => systemKeywords.includes(k)).length + methodological.filter(k => systemKeywords.includes(k)).length;
 
-    // Profile domain detection: combine LLM semantic classification with keyword counts
     const isCyberProfile = llmResult?.primaryDomain === 'Cybersecurity' || cyberCount > devCount;
     const isDevProfile = llmResult?.primaryDomain === 'SoftwareDev' || (!isCyberProfile && devCount >= cyberCount);
 
@@ -205,11 +205,11 @@ export class CvController {
     const parsedData = {
       identity: {
         fullName,
-        email: email || (user ? user.email : 'ayachihazem@gmail.com'),
+        email: email || (user ? user.email : 'candidat@hiremind.ai'),
         phone,
       },
       fullName,
-      email: email || (user ? user.email : 'ayachihazem@gmail.com'),
+      email: email || (user ? user.email : 'candidat@hiremind.ai'),
       phone,
       experienceYears,
       matchScore: calculatedMatchScore,
@@ -219,46 +219,41 @@ export class CvController {
         methodological,
         softSkills,
       },
-      experiences: [
-        {
-          company: 'Expérience Professionnelle',
-          role: 'Développeur / Ingénieur',
-          duration: `${experienceYears} ans d'expérience`,
-          description: 'Détails extraits automatiquement du fichier téléversé.',
-        },
-      ],
     };
 
-    const textSummary = llmResult?.summary || `Profil extrait automatiquement depuis le fichier téléversé. Domaine: ${primaryDomainStr}, Expérience: ${experienceYears} ans, Compétences clés: ${technical.slice(0, 5).join(', ')}.`;
+    const textSummary = llmResult?.summary || `Profil extrait automatiquement depuis ${file.originalname}. Domaine: ${primaryDomainStr}, Expérience: ${experienceYears} ans, Compétences clés: ${technical.slice(0, 5).join(', ')}.`;
 
-    // Store in-memory maps per user
     this.parsedDataMap.set(userId, { ...parsedData, textSummary, radarScores });
     this.radarScoresMap.set(userId, radarScores);
 
-    // 3. Generate 16-D Vector Embedding & Index into Qdrant Vector DB
+    // Save candidate in centralized MongoDB Candidates collection
+    await this.candidatesService.upsert({
+      id: userId,
+      fullName,
+      email: parsedData.email,
+      phone,
+      roleApplied: `${primaryDomainStr} Specialist`,
+      matchScore: calculatedMatchScore,
+      status: 'parsed',
+      skills: technical.length > 0 ? technical : ['Compétences Générales'],
+      radarScores,
+      appliedDate: new Date().toISOString().split('T')[0],
+      experienceYears,
+      summary: textSummary,
+      interviewHistory: []
+    });
+
+    // Generate 16-D Vector Embedding & Index into Qdrant Vector DB
     try {
       const skillsList = [...technical, ...methodological];
       const vector = this.qdrantService.generateEmbedding(skillsList, text);
-      const isUpserted = await this.qdrantService.upsertVector(userId, vector, {
+      await this.qdrantService.upsertVector(userId, vector, {
         id: userId,
         title: fullName,
         skills: skillsList,
         type: 'candidate',
       });
-      console.log(`[QDRANT VECTOR DB] Candidate '${fullName}' indexed successfully: ${isUpserted}`);
-    } catch (qErr) {
-      console.error('[QDRANT VECTOR DB] Vector indexing error:', qErr);
-    }
-
-    console.log('=== CV PARSED FOR USER:', userId, '===');
-    console.log('Name:', fullName);
-    console.log('Email:', email || 'ayachihazem@gmail.com');
-    console.log('Phone:', phone || '+216 25 188 318');
-    console.log('Technical:', technical);
-    console.log('Methodological:', methodological);
-    console.log('Soft:', softSkills);
-    console.log('Scores:', radarScores);
-    console.log('====================================');
+    } catch (qErr) {}
 
     return {
       cvUrl: 'https://minio.hiremind.internal/cvs/raw_cv_' + userId + '.pdf',
@@ -271,21 +266,36 @@ export class CvController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtenir le Passeport de Compétences (Skill Passport IA)' })
   @ApiResponse({ status: 200, description: 'Passeport de compétences récupéré.' })
-  getPassport(@Headers('Authorization') authHeader: string) {
+  async getPassport(@Headers('Authorization') authHeader: string) {
     const userId = this.getUserIdFromHeader(authHeader);
     
-    if (!this.radarScoresMap.has(userId)) {
+    if (this.radarScoresMap.has(userId)) {
       return {
         candidateId: userId,
-        radarScores: [],
-        parsedData: null,
+        radarScores: this.radarScoresMap.get(userId),
+        parsedData: this.parsedDataMap.get(userId) || null,
+      };
+    }
+
+    const cand = await this.candidatesService.findOne(userId);
+    if (cand) {
+      return {
+        candidateId: userId,
+        radarScores: cand.radarScores || [],
+        parsedData: {
+          fullName: cand.fullName,
+          email: cand.email,
+          phone: cand.phone,
+          skills: { technical: cand.skills || [] },
+          textSummary: cand.summary
+        }
       };
     }
 
     return {
       candidateId: userId,
-      radarScores: this.radarScoresMap.get(userId),
-      parsedData: this.parsedDataMap.get(userId) || null,
+      radarScores: [],
+      parsedData: null,
     };
   }
 }

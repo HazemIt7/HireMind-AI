@@ -79,23 +79,49 @@ export default function RecruiterDashboardPage() {
     } catch (e) {}
   };
 
-  // Load & Sync candidate list from localStorage continuously
+  // Load & Sync candidate list from backend API / localStorage
   const loadCandidatesFromStorage = () => {
-    try {
-      const saved = localStorage.getItem('hiremind_candidates');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setCandidates(parsed);
+    fetch('http://localhost:3000/api/v1/candidates')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCandidates(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('hiremind_candidates', JSON.stringify(data));
+          }
           return;
         }
-      }
-      setCandidates([]);
-    } catch (error) {
-      console.error('Failed to load candidates from localStorage:', error);
-    } finally {
-      setIsInitialized(true);
-    }
+        // Fallback to local storage
+        if (typeof window !== 'undefined') {
+          const saved = localStorage.getItem('hiremind_candidates');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+              setCandidates(parsed);
+              return;
+            }
+          }
+        }
+        setCandidates([]);
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          const saved = localStorage.getItem('hiremind_candidates');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed)) {
+                setCandidates(parsed);
+                return;
+              }
+            } catch (e) {}
+          }
+        }
+        setCandidates([]);
+      })
+      .finally(() => {
+        setIsInitialized(true);
+      });
   };
 
   React.useEffect(() => {
@@ -103,7 +129,7 @@ export default function RecruiterDashboardPage() {
 
     const handleStorageChange = () => loadCandidatesFromStorage();
     window.addEventListener('storage', handleStorageChange);
-    const interval = setInterval(loadCandidatesFromStorage, 1000);
+    const interval = setInterval(loadCandidatesFromStorage, 2000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -185,6 +211,13 @@ export default function RecruiterDashboardPage() {
     if (selectedCandidate && selectedCandidate.id === candidateId) {
       setSelectedCandidate((prev) => (prev ? { ...prev, status: newStatus } : null));
     }
+
+    // Persist status change to backend
+    fetch(`http://localhost:3000/api/v1/candidates/${candidateId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    }).catch(() => {});
   };
 
   // Upload candidate CV to NestJS backend (/cv/upload)

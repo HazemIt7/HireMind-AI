@@ -62,6 +62,21 @@ export const JobOffersManager: React.FC<JobOffersManagerProps> = ({ userSession,
   const [showModal, setShowModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobOffer | null>(null);
 
+  // Fetch jobs from backend on mount
+  React.useEffect(() => {
+    fetch('http://localhost:3000/api/v1/jobs')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setJobs(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('hiremind_job_offers', JSON.stringify(data));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Sync jobs state to localStorage
   const saveJobsToLocalStorage = (updatedJobs: JobOffer[]) => {
     setJobs(updatedJobs);
