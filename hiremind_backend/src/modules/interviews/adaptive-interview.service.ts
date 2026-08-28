@@ -9,6 +9,7 @@ export interface InterviewSession {
   skills: string[];
   candidateName?: string;
   candidateId?: string;
+  candidateEmail?: string;
   currentStep: number;
   maxSteps: number;
   difficultyLevel: number; // 1 to 5
@@ -46,6 +47,7 @@ export class AdaptiveInterviewService {
     skills?: string[],
     description?: string,
     candidateId?: string,
+    candidateEmail?: string,
   ): Promise<InterviewSession> {
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const title = jobTitle || 'Poste Technique';
@@ -62,8 +64,9 @@ export class AdaptiveInterviewService {
       jobId,
       jobTitle: title,
       skills: skills || [],
-      candidateName: candidateName || 'Alexandre Dubois',
-      candidateId: candidateId,
+      candidateName: candidateName || 'Candidat',
+      candidateId,
+      candidateEmail,
       currentStep: 1,
       maxSteps: 3,
       difficultyLevel: 1,
@@ -93,7 +96,7 @@ export class AdaptiveInterviewService {
         jobId: 'job_018274',
         jobTitle: 'Cloud DevOps Engineer (Kubernetes)',
         skills: ['Kubernetes', 'Docker', 'Terraform', 'CI/CD'],
-        candidateName: 'Alexandre Dubois',
+        candidateName: 'Alexandre DUPONT',
         currentStep: 1,
         maxSteps: 3,
         difficultyLevel: 1,
@@ -143,23 +146,34 @@ export class AdaptiveInterviewService {
       // Automatically Synchronize and Advance Candidate in Centralized MongoDB ATS Pipeline
       try {
         const allCandidates = await this.candidatesService.findAll();
-        const cand = allCandidates.find((c: any) =>
-          (session.candidateName && c.fullName && c.fullName.toLowerCase().includes(session.candidateName.toLowerCase())) ||
-          (session.candidateName && session.candidateName.toLowerCase().includes((c.fullName || '').toLowerCase())) ||
-          (session.candidateId && c.id === session.candidateId) ||
-          c.id === 'cand_alexandre_dubois'
-        );
+        
+        // Exact and fuzzy match candidate
+        let cand = allCandidates.find((c: any) => {
+          if (session?.candidateId && c.id === session.candidateId) return true;
+          if (session?.candidateEmail && c.email && c.email.toLowerCase() === session.candidateEmail.toLowerCase()) return true;
+          if (session?.candidateName && c.fullName) {
+            const sName = session.candidateName.toLowerCase().trim();
+            const cName = c.fullName.toLowerCase().trim();
+            return sName === cName || sName.includes(cName) || cName.includes(sName);
+          }
+          return false;
+        });
+
+        // If not found by exact criteria, fallback to the latest registered/parsed candidate
+        if (!cand && allCandidates.length > 0) {
+          cand = allCandidates[allCandidates.length - 1];
+        }
+
+        const updatedHistory = session.history.map((h, i) => ({
+          step: i + 1,
+          topic: h.topic,
+          question: h.question,
+          answer: h.answer || answerText,
+          score: h.score || evaluatedScore,
+          feedback: h.feedback || evalResult.feedback,
+        }));
 
         if (cand) {
-          const updatedHistory = session.history.map((h, i) => ({
-            step: i + 1,
-            topic: h.topic,
-            question: h.question,
-            answer: h.answer || answerText,
-            score: h.score || evaluatedScore,
-            feedback: h.feedback || evalResult.feedback,
-          }));
-
           await this.candidatesService.upsert({
             ...cand,
             status: 'tech_interview',
@@ -167,7 +181,21 @@ export class AdaptiveInterviewService {
             interviewHistory: updatedHistory,
           });
 
-          this.logger.log(`Candidate '${cand.fullName}' advanced to 'tech_interview' in ATS with score ${finalScore}%`);
+          this.logger.log(`Candidate '${cand.fullName}' (${cand.id}) advanced to 'tech_interview' with score ${finalScore}%`);
+        } else {
+          // Create candidate if not exists
+          await this.candidatesService.upsert({
+            id: session.candidateId || `cand_${Date.now()}`,
+            fullName: session.candidateName || 'Candidat Évalué',
+            email: session.candidateEmail || 'candidat@hiremind.ai',
+            roleApplied: session.jobTitle,
+            matchScore: finalScore,
+            status: 'tech_interview',
+            skills: session.skills,
+            appliedDate: new Date().toISOString().split('T')[0],
+            interviewHistory: updatedHistory,
+            summary: `Entretien IA validé pour le poste ${session.jobTitle}.`,
+          });
         }
       } catch (err: any) {
         this.logger.warn(`Failed to auto-sync candidate to ATS: ${err.message}`);

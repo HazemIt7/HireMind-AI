@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseInterceptors } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Headers, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { AdaptiveInterviewService } from './adaptive-interview.service';
 import { AudioStreamingService } from './audio-streaming.service';
@@ -13,6 +13,18 @@ export class InterviewsController {
     private readonly audioStreamingService: AudioStreamingService,
   ) {}
 
+  private extractUserFromToken(authHeader?: string): { id?: string; email?: string } {
+    if (!authHeader) return {};
+    try {
+      const token = authHeader.replace('Bearer ', '');
+      const payloadString = Buffer.from(token, 'base64').toString('ascii');
+      const payload = JSON.parse(payloadString);
+      return { id: payload.id, email: payload.email };
+    } catch {
+      return {};
+    }
+  }
+
   @Post('start')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lancer une session d\'entretien IA adaptative' })
@@ -23,37 +35,37 @@ export class InterviewsController {
       required: ['jobId'],
       properties: {
         jobId: { type: 'string', example: 'job_018273' },
-        candidateName: { type: 'string', example: 'Hazem Ayachi' },
-      },
-    },
-  })
-  @Post('start')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Lancer une session d\'entretien IA adaptative' })
-  @ApiResponse({ status: 201, description: 'Session d\'entretien démarrée.' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['jobId'],
-      properties: {
-        jobId: { type: 'string', example: 'job_018273' },
-        candidateName: { type: 'string', example: 'Hazem Ayachi' },
-        jobTitle: { type: 'string', example: 'Ingénieur Cybersécurité' },
+        candidateId: { type: 'string', example: 'cand_123' },
+        candidateName: { type: 'string', example: 'Alexandre DUPONT' },
+        candidateEmail: { type: 'string', example: 'alexandre.dupont@email.com' },
+        jobTitle: { type: 'string', example: 'Développeur Backend NestJS' },
         skills: { type: 'array', items: { type: 'string' } },
+        description: { type: 'string' }
       },
     },
   })
-  async startInterview(@Body() body: any) {
+  async startInterview(
+    @Body() body: any,
+    @Headers('Authorization') authHeader?: string,
+  ) {
+    const tokenInfo = this.extractUserFromToken(authHeader);
+    const candidateId = body.candidateId || tokenInfo.id;
+    const candidateEmail = body.candidateEmail || tokenInfo.email;
+
     const session = await this.adaptiveInterviewService.startSession(
       body.jobId || 'job_018273',
       body.candidateName,
       body.jobTitle,
       body.skills,
       body.description,
+      candidateId,
+      candidateEmail,
     );
+
     return {
       sessionId: session.sessionId,
       jobId: session.jobId,
+      candidateName: session.candidateName,
       currentStep: session.currentStep,
       maxSteps: session.maxSteps,
       difficultyLevel: session.difficultyLevel,

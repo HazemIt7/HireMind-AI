@@ -39,17 +39,32 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _startInterviewForJob(JobOffer job) {
-    final user = context.read<AuthRepository>().currentUser;
+    final authRepo = context.read<AuthRepository>();
+    final homeVm = context.read<HomeViewModel>();
+    final user = authRepo.currentUser;
     final interviewVm = context.read<InterviewViewModel>();
-    final candName = (user != null && user.firstName.isNotEmpty)
-        ? '${user.firstName} ${user.lastName}'.trim()
-        : 'Alexandre Dubois';
-    final candId = user?.id ?? 'cand_alexandre_dubois';
+
+    String? candName;
+    if (homeVm.parsedCvData != null) {
+      candName = (homeVm.parsedCvData!['fullName'] ?? homeVm.parsedCvData!['identity']?['fullName'])?.toString();
+    }
+    if (candName == null || candName.trim().isEmpty) {
+      if (user != null && (user.firstName.isNotEmpty || user.lastName.isNotEmpty)) {
+        candName = '${user.firstName} ${user.lastName}'.trim();
+      }
+    }
+    if (candName == null || candName.trim().isEmpty) {
+      candName = user?.email.split('@').first ?? 'Alexandre DUPONT';
+    }
+
+    final candEmail = user?.email ?? homeVm.parsedCvData?['email']?.toString() ?? 'alexandre.dupont@email.com';
+    final candId = user?.id ?? homeVm.parsedCvData?['id']?.toString() ?? '09621225-b39c-41b1-89d8-2d951711e614';
 
     interviewVm.startInterview(
       job: job,
       candidateName: candName,
       candidateId: candId,
+      candidateEmail: candEmail,
     );
     context.pushNamed(
       'interview',

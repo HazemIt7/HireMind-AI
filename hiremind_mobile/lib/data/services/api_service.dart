@@ -86,14 +86,18 @@ class ApiService {
   // Interview endpoints
   Future<Response> startInterview({
     required String jobId,
+    String? candidateId,
     String? candidateName,
+    String? candidateEmail,
     String? jobTitle,
     List<String>? skills,
     String? description,
   }) async {
     return await _dio.post('/interviews/start', data: {
       'jobId': jobId,
+      if (candidateId != null) 'candidateId': candidateId,
       if (candidateName != null) 'candidateName': candidateName,
+      if (candidateEmail != null) 'candidateEmail': candidateEmail,
       if (jobTitle != null) 'jobTitle': jobTitle,
       if (skills != null) 'skills': skills,
       if (description != null) 'description': description,

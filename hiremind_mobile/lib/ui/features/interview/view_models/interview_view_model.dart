@@ -99,17 +99,22 @@ class InterviewViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _candidateEmail;
+  String? get candidateEmail => _candidateEmail;
+
   Future<void> startInterview({
     required JobOffer job,
     String? candidateName,
     String? candidateId,
+    String? candidateEmail,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     _jobId = job.id;
     _jobTitle = job.title;
-    _candidateName = candidateName ?? 'Alexandre Dubois';
-    _candidateId = candidateId ?? 'cand_alexandre_dubois';
+    _candidateName = candidateName;
+    _candidateId = candidateId;
+    _candidateEmail = candidateEmail;
     _messages.clear();
     _currentStep = 1;
     _isComplete = false;
@@ -118,7 +123,9 @@ class InterviewViewModel extends ChangeNotifier {
     try {
       final response = await _apiService.startInterview(
         jobId: job.id,
+        candidateId: _candidateId,
         candidateName: _candidateName,
+        candidateEmail: _candidateEmail,
         jobTitle: job.title,
         skills: job.skillsRequired,
         description: job.description,
