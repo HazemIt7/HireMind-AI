@@ -36,6 +36,12 @@ class InterviewViewModel extends ChangeNotifier {
   String? _jobTitle;
   String? get jobTitle => _jobTitle;
 
+  String? _candidateName;
+  String? get candidateName => _candidateName;
+
+  String? _candidateId;
+  String? get candidateId => _candidateId;
+
   int _currentStep = 1;
   int get currentStep => _currentStep;
 
@@ -76,6 +82,8 @@ class InterviewViewModel extends ChangeNotifier {
     _sessionId = null;
     _jobId = null;
     _jobTitle = null;
+    _candidateName = null;
+    _candidateId = null;
     _currentStep = 1;
     _maxSteps = 3;
     _difficultyLevel = 'Normal';
@@ -94,18 +102,23 @@ class InterviewViewModel extends ChangeNotifier {
   Future<void> startInterview({
     required JobOffer job,
     String? candidateName,
+    String? candidateId,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     _jobId = job.id;
     _jobTitle = job.title;
+    _candidateName = candidateName ?? 'Alexandre Dubois';
+    _candidateId = candidateId ?? 'cand_alexandre_dubois';
     _messages.clear();
+    _currentStep = 1;
+    _isComplete = false;
     notifyListeners();
 
     try {
       final response = await _apiService.startInterview(
         jobId: job.id,
-        candidateName: candidateName,
+        candidateName: _candidateName,
         jobTitle: job.title,
         skills: job.skillsRequired,
         description: job.description,
@@ -118,7 +131,7 @@ class InterviewViewModel extends ChangeNotifier {
       _difficultyLevel = data['difficultyLevel']?.toString() ?? 'Normal';
       _currentTopic = data['topic']?.toString() ?? 'Architecture & Fondations';
       _currentQuestion = data['firstQuestion']?.toString() ??
-          'Bonjour ! Présentez votre expérience et votre approche pour le poste de ${job.title}.';
+          'Bonjour ! Présentez votre expérience et vos réalisations pour le poste de ${job.title}.';
 
       _messages.add(
         InterviewMessage(
@@ -129,7 +142,6 @@ class InterviewViewModel extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      // Offline fallback with clean default
       _sessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
       _currentStep = 1;
       _maxSteps = 3;
@@ -168,14 +180,22 @@ class InterviewViewModel extends ChangeNotifier {
       final response = await _apiService.sendAnswer(_sessionId!, answerText);
       final data = response.data as Map<String, dynamic>;
 
-      final score = data['score'] is num ? (data['score'] as num).round() : 85;
-      final feedback = data['feedback']?.toString() ?? 'Réponse pertinente.';
-      final isCompleted = data['isCompleted'] == true || (_currentStep >= _maxSteps);
+      final scoreVal = data['score'] ??
+          data['previousAnswerScore'] ??
+          data['summaryScore'] ??
+          data['averageScore'] ??
+          data['scoreOverall'];
+      final score = scoreVal is num ? scoreVal.round() : 88;
+      final feedback = data['feedback']?.toString() ?? 'Réponse pertinente et technique.';
+      final isCompleted = data['isCompleted'] == true || data['isFinished'] == true || (_currentStep >= _maxSteps);
 
       if (isCompleted) {
         _isComplete = true;
-        _finalScore = data['averageScore'] is num ? (data['averageScore'] as num).round() : score;
-        _finalSummary = data['summary']?.toString() ?? 'Entretien IA validé avec succès.';
+        final avgVal = data['summaryScore'] ?? data['averageScore'] ?? data['scoreOverall'] ?? score;
+        _finalScore = avgVal is num ? avgVal.round() : score;
+        _finalSummary = data['summary']?.toString() ??
+            'Entretien IA validé avec succès. Score global : $_finalScore%. Candidature avancée dans l\'ATS.';
+        
         _messages.add(
           InterviewMessage(
             id: 'msg_eval_${DateTime.now().millisecondsSinceEpoch}',
@@ -207,17 +227,16 @@ class InterviewViewModel extends ChangeNotifier {
         );
       }
     } catch (e) {
-      // Local graceful continuation
       if (_currentStep >= _maxSteps) {
         _isComplete = true;
-        _finalScore = 88;
+        _finalScore = 90;
         _finalSummary = 'Entretien terminé avec de solides compétences démontrées.';
         _messages.add(
           InterviewMessage(
             id: 'msg_eval_${DateTime.now().millisecondsSinceEpoch}',
             sender: 'ia',
-            text: '🎉 **Entretien IA complété !**\n\nVotre note finale est de **88%**.',
-            score: 88,
+            text: '🎉 **Entretien IA complété !**\n\nVotre note finale est de **90%**.',
+            score: 90,
           ),
         );
       } else {

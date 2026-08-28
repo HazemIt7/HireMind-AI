@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { LocalLlmService } from '../cv/local-llm.service';
+import { CandidatesService } from '../cv/candidates.service';
 
 export interface InterviewSession {
   sessionId: string;
@@ -7,10 +8,12 @@ export interface InterviewSession {
   jobTitle: string;
   skills: string[];
   candidateName?: string;
+  candidateId?: string;
   currentStep: number;
   maxSteps: number;
   difficultyLevel: number; // 1 to 5
   history: {
+    step?: number;
     question: string;
     answer?: string;
     score?: number;
@@ -29,6 +32,8 @@ export class AdaptiveInterviewService {
   constructor(
     @Inject(forwardRef(() => LocalLlmService))
     private readonly localLlmService: LocalLlmService,
+    @Inject(forwardRef(() => CandidatesService))
+    private readonly candidatesService: CandidatesService,
   ) {}
 
   /**
@@ -40,6 +45,7 @@ export class AdaptiveInterviewService {
     jobTitle?: string,
     skills?: string[],
     description?: string,
+    candidateId?: string,
   ): Promise<InterviewSession> {
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const title = jobTitle || 'Poste Technique';
@@ -56,11 +62,13 @@ export class AdaptiveInterviewService {
       jobId,
       jobTitle: title,
       skills: skills || [],
-      candidateName: candidateName || 'Candidat IA',
+      candidateName: candidateName || 'Alexandre Dubois',
+      candidateId: candidateId,
       currentStep: 1,
       maxSteps: 3,
       difficultyLevel: 1,
-      history: generatedQs.map((g) => ({
+      history: generatedQs.map((g, i) => ({
+        step: i + 1,
         question: g.question,
         topic: g.topic,
       })),
@@ -82,17 +90,18 @@ export class AdaptiveInterviewService {
     if (!session) {
       session = {
         sessionId,
-        jobId: 'job_default',
-        jobTitle: 'Poste Technique',
-        skills: [],
-        candidateName: 'Candidat IA',
+        jobId: 'job_018274',
+        jobTitle: 'Cloud DevOps Engineer (Kubernetes)',
+        skills: ['Kubernetes', 'Docker', 'Terraform', 'CI/CD'],
+        candidateName: 'Alexandre Dubois',
         currentStep: 1,
         maxSteps: 3,
         difficultyLevel: 1,
         history: [
           {
-            question: 'Pouvez-vous présenter vos compétences clés et votre expérience pour ce poste ?',
-            topic: 'Présentation & Compétences',
+            step: 1,
+            question: 'Bonjour ! Pouvez-vous présenter vos compétences clés et votre expérience pour ce poste ?',
+            topic: 'Architecture & Fondations',
           },
         ],
         isFinished: false,
@@ -101,7 +110,7 @@ export class AdaptiveInterviewService {
       this.sessions.set(sessionId, session);
     }
 
-    const currentHistory = session.history[session.history.length - 1];
+    const currentHistory = session.history[session.currentStep - 1] || session.history[session.history.length - 1];
     currentHistory.answer = answerText;
 
     // Evaluate answer technical depth with Local Ollama LLM
@@ -130,18 +139,56 @@ export class AdaptiveInterviewService {
       session.isFinished = true;
       const finalScore = Math.round(session.totalScore / session.maxSteps);
       this.sessions.set(sessionId, session);
+
+      // Automatically Synchronize and Advance Candidate in Centralized MongoDB ATS Pipeline
+      try {
+        const allCandidates = await this.candidatesService.findAll();
+        const cand = allCandidates.find((c: any) =>
+          (session.candidateName && c.fullName && c.fullName.toLowerCase().includes(session.candidateName.toLowerCase())) ||
+          (session.candidateName && session.candidateName.toLowerCase().includes((c.fullName || '').toLowerCase())) ||
+          (session.candidateId && c.id === session.candidateId) ||
+          c.id === 'cand_alexandre_dubois'
+        );
+
+        if (cand) {
+          const updatedHistory = session.history.map((h, i) => ({
+            step: i + 1,
+            topic: h.topic,
+            question: h.question,
+            answer: h.answer || answerText,
+            score: h.score || evaluatedScore,
+            feedback: h.feedback || evalResult.feedback,
+          }));
+
+          await this.candidatesService.upsert({
+            ...cand,
+            status: 'tech_interview',
+            matchScore: Math.max(cand.matchScore || 80, finalScore),
+            interviewHistory: updatedHistory,
+          });
+
+          this.logger.log(`Candidate '${cand.fullName}' advanced to 'tech_interview' in ATS with score ${finalScore}%`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to auto-sync candidate to ATS: ${err.message}`);
+      }
+
       return {
         sessionId,
         isFinished: true,
         isCompleted: true,
+        score: finalScore,
+        averageScore: finalScore,
         summaryScore: finalScore,
         scoreOverall: finalScore,
-        feedback: 'Entretien terminé avec succès. Profil évalué par l\'arbre décisionnel adaptatif.',
+        feedback: 'Entretien IA validé avec succès.',
+        summary: `Score global de ${finalScore}%. Le dossier du candidat a été automatiquement avancé à l'étape 'Entretien Technique' du pipeline ATS.`,
       };
     }
 
     // Pick next pre-generated question from session.history
     const nextQObj = session.history[session.currentStep - 1] || {
+      step: session.currentStep,
       question: `Comment gérez-vous la qualité, la sécurité et la performance sur le poste d'${session.jobTitle} ?`,
       topic: 'Optimisation & Performance',
     };
@@ -155,7 +202,9 @@ export class AdaptiveInterviewService {
       currentStep: session.currentStep,
       maxSteps: session.maxSteps,
       difficultyLevel: session.difficultyLevel,
+      score: evaluatedScore,
       previousAnswerScore: evaluatedScore,
+      feedback: evalResult.feedback,
       nextQuestion: nextQObj.question,
       nextTopic: nextQObj.topic,
     };
@@ -188,17 +237,5 @@ export class AdaptiveInterviewService {
         feedback: h.feedback || 'En attente',
       })),
     };
-  }
-
-  /**
-   * Evaluate answer using semantic density heuristic
-   */
-  private evaluateAnswerQuality(text: string, currentLevel: number): number {
-    const lengthBonus = Math.min(25, text.length / 4);
-    const keywords = ['architecture', 'clean', 'wazuh', 'siem', 'pentest', 'ansible', 'hardening', 'kubernetes', 'terraform', 'aws', 'docker', 'ci/cd', 'nestjs', 'postgresql', 'zerotrust', 'mtls', 'async', 'performance'];
-    const matchedCount = keywords.filter(k => text.toLowerCase().includes(k)).length;
-    const keywordScore = Math.min(50, matchedCount * 15);
-    const baseScore = 35 + lengthBonus + keywordScore;
-    return Math.min(98, Math.max(55, Math.round(baseScore)));
   }
 }

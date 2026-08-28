@@ -41,9 +41,15 @@ class _HomeViewState extends State<HomeView> {
   void _startInterviewForJob(JobOffer job) {
     final user = context.read<AuthRepository>().currentUser;
     final interviewVm = context.read<InterviewViewModel>();
+    final candName = (user != null && user.firstName.isNotEmpty)
+        ? '${user.firstName} ${user.lastName}'.trim()
+        : 'Alexandre Dubois';
+    final candId = user?.id ?? 'cand_alexandre_dubois';
+
     interviewVm.startInterview(
       job: job,
-      candidateName: user != null ? '${user.firstName} ${user.lastName}' : 'Candidat',
+      candidateName: candName,
+      candidateId: candId,
     );
     context.pushNamed(
       'interview',
