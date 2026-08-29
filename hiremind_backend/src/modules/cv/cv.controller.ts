@@ -67,21 +67,8 @@ export class CvController {
   @ApiBearerAuth('JWT-auth')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Déposer un CV pour parsing automatique' })
+  @ApiOperation({ summary: 'Déposer un CV pour parsing automatique multi-domaines IT' })
   @ApiResponse({ status: 201, description: 'CV importé et analysé avec succès.' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['file'],
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'Fichier du CV (Max 5MB).',
-        },
-      },
-    },
-  })
   async uploadCv(
     @Headers('Authorization') authHeader: string,
     @UploadedFile() file: any,
@@ -91,7 +78,7 @@ export class CvController {
       throw new UnauthorizedException('Fichier de CV manquant.');
     }
 
-    // 1. Extract text content based on mimetype
+    // 1. Extract text content from PDF buffer
     let text = '';
     try {
       if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
@@ -109,7 +96,7 @@ export class CvController {
       text = file.buffer.toString('utf-8');
     }
 
-    // 2. Parse details dynamically
+    // 2. Parse Contact Info
     const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const email = emailMatch ? emailMatch[0] : '';
 
@@ -122,76 +109,173 @@ export class CvController {
       experienceYears = parseInt(expMatch[1]);
     }
 
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const user = await this.userService.findOneById(userId);
     let fullName = user ? `${user.firstName} ${user.lastName}`.trim() : '';
     if (!fullName) {
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       fullName = lines.length > 0 ? lines[0] : file.originalname.replace('.pdf', '');
     }
 
-    const techCatalog = [
-      'Flutter', 'Dart', 'Firebase', 'Git', 'React', 'Angular', 'Vue', 'Node', 'Express', 'NestJS', 'TypeScript', 'JavaScript', 'Python', 'Django', 'Flask', 'FastAPI', 'Java', 'Spring', 'Go', 'Golang', 'Rust', 'C++', 'C#', 'SQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Android', 'iOS', 'Kotlin', 'Swift',
-      'Analyste SOC', 'SOC Analyst', 'SOC', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint',
-      'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'Proxy', 'Syslog', 'Windows Event Logs',
-      'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing',
-      'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Ethical Hacker', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité', 'Gestion des vulnérabilités', 'Cryptographie', 'PKI',
-      'Réseaux', 'Networks', 'CCNA', 'TCP/IP', 'Cisco', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Linux', 'Kali Linux', 'Ubuntu', 'Debian', 'Windows Server', 'Active Directory', 'VMware', 'VirtualBox', 'Virtualization'
+    // 3. Comprehensive Multi-Domain IT Skills Catalog
+    const dataCatalog = [
+      'Data Analyst', 'Data Analyste', 'Data Scientist', 'Data Science', 'Data Engineer', 'Business Intelligence', 'BI', 'Power BI', 'Tableau', 'Looker Studio', 'Looker',
+      'Pandas', 'NumPy', 'Scikit-learn', 'Matplotlib', 'Seaborn', 'BigQuery', 'SQL', 'PostgreSQL', 'MySQL', 'R', 'Excel', 'VBA', 'Power Query', 'EDA',
+      'Data Mining', 'ETL', 'Data Warehousing', 'Spark', 'Hadoop', 'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Jupyter', 'Jupyter Notebook'
     ];
-    const technical = techCatalog.filter(skill => {
-      const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const pattern = /[^a-zA-Z0-9]/.test(skill[skill.length - 1]) 
-        ? `\\b${escaped}` 
-        : `\\b${escaped}\\b`;
-      return new RegExp(pattern, 'i').test(text);
-    });
+
+    const devopsCatalog = [
+      'DevOps', 'Cloud', 'AWS', 'Azure', 'GCP', 'Terraform', 'Ansible', 'Docker', 'Kubernetes', 'K8s', 'Helm', 'CI/CD', 'GitLab CI', 'GitHub Actions', 'Jenkins', 'ArgoCD',
+      'Prometheus', 'Grafana', 'ELK', 'Elasticsearch', 'Logstash', 'Kibana', 'Linux', 'Ubuntu', 'RHEL', 'CentOS', 'Debian', 'Bash', 'Nginx', 'IaC', 'Microservices'
+    ];
+
+    const devCatalog = [
+      'Flutter', 'Dart', 'Node', 'Node.js', 'Express', 'NestJS', 'TypeScript', 'JavaScript', 'React', 'Angular', 'Vue', 'Python', 'Django', 'FastAPI', 'Flask',
+      'Java', 'Spring', 'Spring Boot', 'Go', 'Golang', 'Rust', 'C++', 'C#', '.NET', 'GraphQL', 'REST', 'API REST', 'Clean Architecture', 'DDD', 'TDD',
+      'MongoDB', 'Redis', 'Firebase', 'Git', 'Android', 'iOS', 'Kotlin', 'Swift'
+    ];
+
+    const cyberCatalog = [
+      'SOC', 'Analyste SOC', 'SOC Analyst', 'SIEM', 'Splunk', 'Wazuh', 'OSSEC', 'Sentinel', 'Microsoft Sentinel', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender',
+      'Defender for Endpoint', 'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'Proxy', 'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP',
+      'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing', 'Security+', 'CompTIA Security+',
+      'Cisco CyberOps', 'CyberOps', 'CEH', 'Ethical Hacker', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité', 'Gestion des vulnérabilités', 'SonarQube'
+    ];
+
+    const networkCatalog = [
+      'CCNA', 'Cisco', 'TCP/IP', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Réseaux', 'Networks', 'BGP', 'OSPF', 'Routage', 'Commutation', 'Active Directory', 'Windows Server', 'VMware', 'VirtualBox'
+    ];
 
     const methodCatalog = [
       'Agile', 'Scrum', 'Kanban', 'TDD', 'BDD', 'Clean Architecture', 'DDD', 'CI/CD', 'DevOps', 'Microservices', 'REST', 'GraphQL',
-      'Politique de Sécurité', 'PSSI', 'EBIOS', 'Threat Modeling', 'Routage', 'Commutation', 'Virtualisation', 'Analyse de Risque', 'Analyse de Logs', 'Triage d\'Alertes'
+      'Business Intelligence', 'Data Analysis', 'PSSI', 'EBIOS', 'Threat Modeling', 'Analyse de Risque', 'Triage d\'Alertes'
     ];
-    const methodological = methodCatalog.filter(skill => {
-      const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const pattern = /[^a-zA-Z0-9]/.test(skill[skill.length - 1]) 
-        ? `\\b${escaped}` 
-        : `\\b${escaped}\\b`;
-      return new RegExp(pattern, 'i').test(text);
-    });
 
     const softCatalog = [
       'Communication', 'Leadership', 'Esprit d\'équipe', 'Teamwork', 'Autonomie', 'Rigueur', 'Adaptabilité', 'Gestion du temps', 'Créativité', 'Résolution de problèmes',
-      'Rigueur et Méthode', 'Veille Technologique', 'Curiosité'
+      'Esprit critique', 'Communication visuelle', 'Veille Technologique', 'Curiosité', 'Amélioration continue'
     ];
-    const softSkills = softCatalog.filter(skill => {
+
+    const extractMatches = (catalog: string[]) => catalog.filter(skill => {
       const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const pattern = /[^a-zA-Z0-9]/.test(skill[skill.length - 1]) 
-        ? `\\b${escaped}` 
-        : `\\b${escaped}\\b`;
+      const pattern = /[^a-zA-Z0-9]/.test(skill[skill.length - 1]) ? `\\b${escaped}` : `\\b${escaped}\\b`;
       return new RegExp(pattern, 'i').test(text);
     });
 
+    const technical = [
+      ...extractMatches(dataCatalog),
+      ...extractMatches(devopsCatalog),
+      ...extractMatches(devCatalog),
+      ...extractMatches(cyberCatalog),
+      ...extractMatches(networkCatalog)
+    ].filter((v, i, a) => a.indexOf(v) === i);
+
+    const methodological = extractMatches(methodCatalog).filter((v, i, a) => a.indexOf(v) === i);
+    const softSkills = extractMatches(softCatalog).filter((v, i, a) => a.indexOf(v) === i);
+
+    // 4. Invoke Local Ollama LLM for Intelligent Multi-Domain Classification
     const llmResult = await this.localLlmService.parseCvWithLocalLlm(text);
 
-    const devKeywords = ['Node', 'NestJS', 'Express', 'TypeScript', 'JavaScript', 'React', 'Angular', 'Vue', 'Flutter', 'Dart', 'Django', 'FastAPI', 'Spring', 'Go', 'Java', 'C++', 'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'GraphQL', 'REST', 'Microservices'];
-    const cyberKeywords = ['SOC', 'Analyste SOC', 'SOC Analyst', 'SIEM', 'Splunk', 'ELK', 'Elastic Stack', 'Sentinel', 'Microsoft Sentinel', 'Wazuh', 'OSSEC', 'EDR', 'XDR', 'CrowdStrike', 'Falcon', 'Microsoft Defender', 'Defender for Endpoint', 'Wireshark', 'Zeek', 'tcpdump', 'Nmap', 'Metasploit', 'Pentesting', 'Pentest', 'Firewall', 'MITRE ATT&CK', 'MITRE', 'NIST', 'OWASP', 'ISO 27001', 'Sigma', 'YARA', 'Atomic Red Team', 'Volatility', 'Forensics', 'Incident Response', 'Threat Intelligence', 'Phishing', 'Security+', 'CompTIA Security+', 'Cisco CyberOps', 'CyberOps', 'CEH', 'Cybersécurité', 'Cybersecurity', 'Audit de sécurité'];
-    const networkKeywords = ['CCNA', 'Cisco', 'Cisco CyberOps', 'TCP/IP', 'LAN/WAN', 'VLAN', 'VPN', 'DNS', 'DHCP', 'Modèle OSI', 'Wireshark', 'Zeek', 'tcpdump', 'Réseaux', 'Networks'];
-    const systemKeywords = ['Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'Linux', 'Ubuntu', 'Debian', 'Windows Server', 'Active Directory', 'VMware', 'VirtualBox', 'Terraform', 'CI/CD', 'DevOps'];
+    // 5. Calculate Specific Domain Skill Density
+    const dataCount = extractMatches(dataCatalog).length;
+    const devopsCount = extractMatches(devopsCatalog).length;
+    const devCount = extractMatches(devCatalog).length;
+    const cyberCount = extractMatches(cyberCatalog).length;
+    const networkCount = extractMatches(networkCatalog).length;
 
-    const devCount = technical.filter(k => devKeywords.includes(k)).length + methodological.filter(k => devKeywords.includes(k)).length;
-    const cyberCount = technical.filter(k => cyberKeywords.includes(k)).length + methodological.filter(k => cyberKeywords.includes(k)).length;
-    const networkCount = technical.filter(k => networkKeywords.includes(k)).length + methodological.filter(k => networkKeywords.includes(k)).length;
-    const systemCount = technical.filter(k => systemKeywords.includes(k)).length + methodological.filter(k => systemKeywords.includes(k)).length;
+    // 6. Determine Primary Domain Accurately
+    let primaryDomain: 'DataAnalytics' | 'DevOps' | 'SoftwareDev' | 'Cybersecurity' | 'Networks' = 'SoftwareDev';
 
-    const isCyberProfile = llmResult?.primaryDomain === 'Cybersecurity' || cyberCount > devCount;
-    const isDevProfile = llmResult?.primaryDomain === 'SoftwareDev' || (!isCyberProfile && devCount >= cyberCount);
+    if (llmResult?.primaryDomain) {
+      primaryDomain = llmResult.primaryDomain;
+    } else {
+      // Robust NLP frequency heuristic
+      if (dataCount >= 3 && dataCount >= cyberCount && dataCount >= devopsCount) {
+        primaryDomain = 'DataAnalytics';
+      } else if (devopsCount >= 3 && devopsCount >= cyberCount && devopsCount >= devCount) {
+        primaryDomain = 'DevOps';
+      } else if (cyberCount >= 3 && cyberCount >= devCount) {
+        primaryDomain = 'Cybersecurity';
+      } else if (networkCount >= 3 && networkCount >= devCount) {
+        primaryDomain = 'Networks';
+      } else {
+        primaryDomain = 'SoftwareDev';
+      }
+    }
 
-    const devScore = isDevProfile ? Math.min(80 + devCount * 3, 98) : Math.min(20 + devCount * 3, 40);
-    const cyberScore = isCyberProfile ? Math.min(80 + cyberCount * 3, 98) : Math.min(15 + cyberCount * 3, 35);
-    const networkScore = isCyberProfile ? Math.min(65 + networkCount * 5, 90) : Math.min(30 + networkCount * 5, 60);
-    const systemScore = Math.min(45 + systemCount * 5, 92);
-    const softScore = Math.min(65 + softSkills.length * 7, 95);
+    // 7. Extract Exact Target Role
+    let roleApplied = '';
+    if (llmResult?.targetRole && llmResult.targetRole.trim().length > 2) {
+      roleApplied = llmResult.targetRole.trim();
+    } else {
+      // Find title right below candidate's name in first 3 lines
+      if (lines.length > 1 && lines[1].length < 60 && !lines[1].includes('@') && !lines[1].includes('+')) {
+        roleApplied = lines[1].split('|')[0].trim();
+      } else {
+        switch (primaryDomain) {
+          case 'DataAnalytics':
+            roleApplied = 'Data Analyste';
+            break;
+          case 'DevOps':
+            roleApplied = 'Ingénieur DevOps & Cloud';
+            break;
+          case 'Cybersecurity':
+            roleApplied = 'Analyste SOC & Cybersécurité';
+            break;
+          case 'Networks':
+            roleApplied = 'Ingénieur Réseaux & Télécoms';
+            break;
+          default:
+            roleApplied = 'Développeur Fullstack / Backend';
+        }
+      }
+    }
 
-    let radarScores = [
-      { axis: 'Software Dev', score: devScore, label: 'Software Dev' },
+    // 8. Dynamic & Realistic 5-Axis Radar Calculation
+    let devScore = 20;
+    let cyberScore = 15;
+    let networkScore = 20;
+    let systemScore = 30;
+    let softScore = Math.min(75 + softSkills.length * 4, 95);
+
+    switch (primaryDomain) {
+      case 'DataAnalytics':
+        devScore = Math.min(85 + (dataCount + devCount) * 2, 98);
+        cyberScore = Math.min(10 + cyberCount * 3, 25);
+        networkScore = Math.min(10 + networkCount * 3, 25);
+        systemScore = Math.min(35 + (dataCount + devopsCount) * 2, 60);
+        break;
+
+      case 'DevOps':
+        devScore = Math.min(60 + devCount * 3, 78);
+        cyberScore = Math.min(30 + cyberCount * 5, 65);
+        networkScore = Math.min(70 + networkCount * 4, 88);
+        systemScore = Math.min(88 + devopsCount * 3, 98);
+        break;
+
+      case 'Cybersecurity':
+        devScore = Math.min(45 + devCount * 3, 70);
+        cyberScore = Math.min(88 + cyberCount * 3, 98);
+        networkScore = Math.min(78 + networkCount * 4, 94);
+        systemScore = Math.min(70 + devopsCount * 3, 88);
+        break;
+
+      case 'Networks':
+        devScore = Math.min(25 + devCount * 3, 50);
+        cyberScore = Math.min(40 + cyberCount * 5, 70);
+        networkScore = Math.min(88 + networkCount * 4, 98);
+        systemScore = Math.min(45 + devopsCount * 3, 70);
+        break;
+
+      default: // SoftwareDev
+        devScore = Math.min(85 + devCount * 3, 98);
+        cyberScore = Math.min(15 + cyberCount * 3, 35);
+        networkScore = Math.min(20 + networkCount * 3, 50);
+        systemScore = Math.min(55 + devopsCount * 3, 75);
+        break;
+    }
+
+    const radarScores = [
+      { axis: 'Software Dev', score: devScore, label: 'Software Dev & Data' },
       { axis: 'Cybersecurity', score: cyberScore, label: 'Cybersécurité' },
       { axis: 'Networks', score: networkScore, label: 'Réseaux' },
       { axis: 'Systems', score: systemScore, label: 'Systèmes & DevOps' },
@@ -199,21 +283,21 @@ export class CvController {
     ];
 
     const primaryScore = Math.max(devScore, cyberScore, networkScore, systemScore);
-    const calculatedMatchScore = Math.max(78, Math.min(98, Math.round((primaryScore * 0.7) + (technical.length * 2))));
-    const primaryDomainStr = isCyberProfile ? 'Cybersécurité' : isDevProfile ? 'Développement' : 'Réseaux & Système';
+    const calculatedMatchScore = Math.max(80, Math.min(98, Math.round((primaryScore * 0.7) + (technical.length * 2))));
 
     const parsedData = {
       identity: {
-        fullName,
+        fullName: llmResult?.fullName || fullName,
         email: email || (user ? user.email : 'candidat@hiremind.ai'),
         phone,
       },
-      fullName,
+      fullName: llmResult?.fullName || fullName,
       email: email || (user ? user.email : 'candidat@hiremind.ai'),
       phone,
-      experienceYears,
+      roleApplied,
+      experienceYears: llmResult?.experienceYears || experienceYears,
       matchScore: calculatedMatchScore,
-      primaryDomain: primaryDomainStr,
+      primaryDomain,
       skills: {
         technical,
         methodological,
@@ -221,7 +305,7 @@ export class CvController {
       },
     };
 
-    const textSummary = llmResult?.summary || `Profil extrait automatiquement depuis ${file.originalname}. Domaine: ${primaryDomainStr}, Expérience: ${experienceYears} ans, Compétences clés: ${technical.slice(0, 5).join(', ')}.`;
+    const textSummary = llmResult?.summary || `Profil extrait automatiquement depuis ${file.originalname}. Métier: ${roleApplied}, Expérience: ${parsedData.experienceYears} ans, Compétences clés: ${technical.slice(0, 5).join(', ')}.`;
 
     this.parsedDataMap.set(userId, { ...parsedData, textSummary, radarScores });
     this.radarScoresMap.set(userId, radarScores);
@@ -229,16 +313,16 @@ export class CvController {
     // Save candidate in centralized MongoDB Candidates collection
     await this.candidatesService.upsert({
       id: userId,
-      fullName,
+      fullName: parsedData.fullName,
       email: parsedData.email,
       phone,
-      roleApplied: `${primaryDomainStr} Specialist`,
+      roleApplied,
       matchScore: calculatedMatchScore,
       status: 'parsed',
       skills: technical.length > 0 ? technical : ['Compétences Générales'],
       radarScores,
       appliedDate: new Date().toISOString().split('T')[0],
-      experienceYears,
+      experienceYears: parsedData.experienceYears,
       summary: textSummary,
       interviewHistory: []
     });
@@ -249,7 +333,7 @@ export class CvController {
       const vector = this.qdrantService.generateEmbedding(skillsList, text);
       await this.qdrantService.upsertVector(userId, vector, {
         id: userId,
-        title: fullName,
+        title: parsedData.fullName,
         skills: skillsList,
         type: 'candidate',
       });
@@ -298,6 +382,7 @@ export class CvController {
           fullName: cand.fullName,
           email: cand.email,
           phone: cand.phone,
+          roleApplied: cand.roleApplied,
           skills: { technical: cand.skills || [] },
           textSummary: cand.summary
         }

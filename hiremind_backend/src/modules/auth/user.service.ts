@@ -39,7 +39,14 @@ export class UserService implements OnModuleInit {
   }
 
   async findOneById(id: string): Promise<User | null> {
-    return await this.userRepository.findOne({ where: { id } });
+    if (!id || typeof id !== 'string') return null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) return null;
+    try {
+      return await this.userRepository.findOne({ where: { id } });
+    } catch {
+      return null;
+    }
   }
 
   async create(email: string, passwordPlain: string, role: string, firstName?: string, lastName?: string): Promise<User> {
